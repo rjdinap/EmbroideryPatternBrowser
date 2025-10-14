@@ -1,0 +1,390 @@
+﻿<Global.Microsoft.VisualBasic.CompilerServices.DesignerGenerated()>
+Partial Class Form1
+    Inherits System.Windows.Forms.Form
+
+    'Form overrides dispose to clean up the component list.
+    <System.Diagnostics.DebuggerNonUserCode()>
+    Protected Overrides Sub Dispose(ByVal disposing As Boolean)
+        Try
+            If disposing AndAlso components IsNot Nothing Then
+                components.Dispose()
+            End If
+        Finally
+            MyBase.Dispose(disposing)
+        End Try
+    End Sub
+
+    'Required by the Windows Form Designer
+    Private components As System.ComponentModel.IContainer
+
+    'NOTE: The following procedure is required by the Windows Form Designer
+    'It can be modified using the Windows Form Designer.  
+    'Do not modify it using the code editor.
+    <System.Diagnostics.DebuggerStepThrough()>
+    Private Sub InitializeComponent()
+        Me.Panel_Main_Top = New System.Windows.Forms.Panel()
+        Me.ComboBox_Filter = New System.Windows.Forms.ComboBox()
+        Me.Label_Filter = New System.Windows.Forms.Label()
+        Me.Button_Search = New System.Windows.Forms.Button()
+        Me.TextBox_Search = New System.Windows.Forms.TextBox()
+        Me.Label_Search = New System.Windows.Forms.Label()
+        Me.MenuStrip1 = New System.Windows.Forms.MenuStrip()
+        Me.FileToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
+        Me.OpenDatabaseToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
+        Me.ScanForImagesToolStripMenuItem1 = New System.Windows.Forms.ToolStripMenuItem()
+        Me.ToolsToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
+        Me.CreateNewDatabaseToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
+        Me.HelpToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
+        Me.AboutToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
+        Me.ShowHelpFIleToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
+        Me.Panel_Main_Bottom = New System.Windows.Forms.Panel()
+        Me.Panel_Main_Bottom_Fill = New System.Windows.Forms.Panel()
+        Me.RichTextBox_Status = New System.Windows.Forms.RichTextBox()
+        Me.Panel_Main_Botton_Top = New System.Windows.Forms.Panel()
+        Me.Label_Database = New System.Windows.Forms.Label()
+        Me.TextBox_Collection = New System.Windows.Forms.TextBox()
+        Me.Panel_Main_Left = New System.Windows.Forms.Panel()
+        Me.Panel_Main_Fill = New System.Windows.Forms.Panel()
+        Me.Panel_Right = New System.Windows.Forms.Panel()
+        Me.Panel_Right_Fill = New System.Windows.Forms.Panel()
+        Me.PictureBox_FullImage = New System.Windows.Forms.PictureBox()
+        Me.Panel_Right_Top = New System.Windows.Forms.Panel()
+        Me.Button_Rotate = New System.Windows.Forms.Button()
+        Me.Panel_Right_Bottom = New System.Windows.Forms.Panel()
+        Me.Panel_Main_Top.SuspendLayout()
+        Me.MenuStrip1.SuspendLayout()
+        Me.Panel_Main_Bottom.SuspendLayout()
+        Me.Panel_Main_Bottom_Fill.SuspendLayout()
+        Me.Panel_Main_Botton_Top.SuspendLayout()
+        Me.Panel_Right.SuspendLayout()
+        Me.Panel_Right_Fill.SuspendLayout()
+        CType(Me.PictureBox_FullImage, System.ComponentModel.ISupportInitialize).BeginInit()
+        Me.Panel_Right_Top.SuspendLayout()
+        Me.SuspendLayout()
+        '
+        'Panel_Main_Top
+        '
+        Me.Panel_Main_Top.BackColor = System.Drawing.Color.FromArgb(CType(CType(192, Byte), Integer), CType(CType(255, Byte), Integer), CType(CType(192, Byte), Integer))
+        Me.Panel_Main_Top.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.Panel_Main_Top.Controls.Add(Me.ComboBox_Filter)
+        Me.Panel_Main_Top.Controls.Add(Me.Label_Filter)
+        Me.Panel_Main_Top.Controls.Add(Me.Button_Search)
+        Me.Panel_Main_Top.Controls.Add(Me.TextBox_Search)
+        Me.Panel_Main_Top.Controls.Add(Me.Label_Search)
+        Me.Panel_Main_Top.Controls.Add(Me.MenuStrip1)
+        Me.Panel_Main_Top.Dock = System.Windows.Forms.DockStyle.Top
+        Me.Panel_Main_Top.Location = New System.Drawing.Point(0, 0)
+        Me.Panel_Main_Top.Name = "Panel_Main_Top"
+        Me.Panel_Main_Top.Size = New System.Drawing.Size(1356, 59)
+        Me.Panel_Main_Top.TabIndex = 0
+        '
+        'ComboBox_Filter
+        '
+        Me.ComboBox_Filter.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
+        Me.ComboBox_Filter.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        Me.ComboBox_Filter.FormattingEnabled = True
+        Me.ComboBox_Filter.Items.AddRange(New Object() {"", "dst", "exp", "hus", "jef", "pec", "pes", "sew", "vip", "vp3", "xxx"})
+        Me.ComboBox_Filter.Location = New System.Drawing.Point(506, 31)
+        Me.ComboBox_Filter.Name = "ComboBox_Filter"
+        Me.ComboBox_Filter.Size = New System.Drawing.Size(121, 24)
+        Me.ComboBox_Filter.TabIndex = 6
+        '
+        'Label_Filter
+        '
+        Me.Label_Filter.AutoSize = True
+        Me.Label_Filter.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        Me.Label_Filter.Location = New System.Drawing.Point(463, 33)
+        Me.Label_Filter.Name = "Label_Filter"
+        Me.Label_Filter.Size = New System.Drawing.Size(39, 16)
+        Me.Label_Filter.TabIndex = 5
+        Me.Label_Filter.Text = "Filter:"
+        '
+        'Button_Search
+        '
+        Me.Button_Search.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        Me.Button_Search.Location = New System.Drawing.Point(355, 32)
+        Me.Button_Search.Name = "Button_Search"
+        Me.Button_Search.Size = New System.Drawing.Size(65, 23)
+        Me.Button_Search.TabIndex = 4
+        Me.Button_Search.Text = "Search"
+        Me.Button_Search.UseVisualStyleBackColor = True
+        '
+        'TextBox_Search
+        '
+        Me.TextBox_Search.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        Me.TextBox_Search.Location = New System.Drawing.Point(66, 32)
+        Me.TextBox_Search.Name = "TextBox_Search"
+        Me.TextBox_Search.Size = New System.Drawing.Size(283, 22)
+        Me.TextBox_Search.TabIndex = 3
+        '
+        'Label_Search
+        '
+        Me.Label_Search.AutoSize = True
+        Me.Label_Search.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        Me.Label_Search.Location = New System.Drawing.Point(13, 33)
+        Me.Label_Search.Name = "Label_Search"
+        Me.Label_Search.Size = New System.Drawing.Size(50, 16)
+        Me.Label_Search.TabIndex = 2
+        Me.Label_Search.Text = "&Search"
+        '
+        'MenuStrip1
+        '
+        Me.MenuStrip1.BackColor = System.Drawing.Color.FromArgb(CType(CType(192, Byte), Integer), CType(CType(255, Byte), Integer), CType(CType(192, Byte), Integer))
+        Me.MenuStrip1.Items.AddRange(New System.Windows.Forms.ToolStripItem() {Me.FileToolStripMenuItem, Me.ToolsToolStripMenuItem, Me.HelpToolStripMenuItem})
+        Me.MenuStrip1.Location = New System.Drawing.Point(0, 0)
+        Me.MenuStrip1.Name = "MenuStrip1"
+        Me.MenuStrip1.Size = New System.Drawing.Size(1354, 27)
+        Me.MenuStrip1.TabIndex = 0
+        Me.MenuStrip1.Text = "MenuStrip1"
+        '
+        'FileToolStripMenuItem
+        '
+        Me.FileToolStripMenuItem.DropDownItems.AddRange(New System.Windows.Forms.ToolStripItem() {Me.OpenDatabaseToolStripMenuItem, Me.ScanForImagesToolStripMenuItem1})
+        Me.FileToolStripMenuItem.Name = "FileToolStripMenuItem"
+        Me.FileToolStripMenuItem.Size = New System.Drawing.Size(41, 23)
+        Me.FileToolStripMenuItem.Text = "File"
+        '
+        'OpenDatabaseToolStripMenuItem
+        '
+        Me.OpenDatabaseToolStripMenuItem.Name = "OpenDatabaseToolStripMenuItem"
+        Me.OpenDatabaseToolStripMenuItem.Size = New System.Drawing.Size(175, 24)
+        Me.OpenDatabaseToolStripMenuItem.Text = "Open Database"
+        '
+        'ScanForImagesToolStripMenuItem1
+        '
+        Me.ScanForImagesToolStripMenuItem1.Name = "ScanForImagesToolStripMenuItem1"
+        Me.ScanForImagesToolStripMenuItem1.Size = New System.Drawing.Size(175, 24)
+        Me.ScanForImagesToolStripMenuItem1.Text = "Scan for Images"
+        '
+        'ToolsToolStripMenuItem
+        '
+        Me.ToolsToolStripMenuItem.DropDownItems.AddRange(New System.Windows.Forms.ToolStripItem() {Me.CreateNewDatabaseToolStripMenuItem})
+        Me.ToolsToolStripMenuItem.Name = "ToolsToolStripMenuItem"
+        Me.ToolsToolStripMenuItem.Size = New System.Drawing.Size(52, 23)
+        Me.ToolsToolStripMenuItem.Text = "Tools"
+        '
+        'CreateNewDatabaseToolStripMenuItem
+        '
+        Me.CreateNewDatabaseToolStripMenuItem.Name = "CreateNewDatabaseToolStripMenuItem"
+        Me.CreateNewDatabaseToolStripMenuItem.Size = New System.Drawing.Size(210, 24)
+        Me.CreateNewDatabaseToolStripMenuItem.Text = "Create New Database"
+        '
+        'HelpToolStripMenuItem
+        '
+        Me.HelpToolStripMenuItem.DropDownItems.AddRange(New System.Windows.Forms.ToolStripItem() {Me.AboutToolStripMenuItem, Me.ShowHelpFIleToolStripMenuItem})
+        Me.HelpToolStripMenuItem.Name = "HelpToolStripMenuItem"
+        Me.HelpToolStripMenuItem.Size = New System.Drawing.Size(49, 23)
+        Me.HelpToolStripMenuItem.Text = "Help"
+        '
+        'AboutToolStripMenuItem
+        '
+        Me.AboutToolStripMenuItem.Name = "AboutToolStripMenuItem"
+        Me.AboutToolStripMenuItem.Size = New System.Drawing.Size(168, 24)
+        Me.AboutToolStripMenuItem.Text = "About"
+        '
+        'ShowHelpFIleToolStripMenuItem
+        '
+        Me.ShowHelpFIleToolStripMenuItem.Name = "ShowHelpFIleToolStripMenuItem"
+        Me.ShowHelpFIleToolStripMenuItem.Size = New System.Drawing.Size(168, 24)
+        Me.ShowHelpFIleToolStripMenuItem.Text = "Show Help FIle"
+        '
+        'Panel_Main_Bottom
+        '
+        Me.Panel_Main_Bottom.BackColor = System.Drawing.SystemColors.Control
+        Me.Panel_Main_Bottom.Controls.Add(Me.Panel_Main_Bottom_Fill)
+        Me.Panel_Main_Bottom.Controls.Add(Me.Panel_Main_Botton_Top)
+        Me.Panel_Main_Bottom.Dock = System.Windows.Forms.DockStyle.Bottom
+        Me.Panel_Main_Bottom.Location = New System.Drawing.Point(200, 477)
+        Me.Panel_Main_Bottom.Name = "Panel_Main_Bottom"
+        Me.Panel_Main_Bottom.Size = New System.Drawing.Size(757, 130)
+        Me.Panel_Main_Bottom.TabIndex = 2
+        '
+        'Panel_Main_Bottom_Fill
+        '
+        Me.Panel_Main_Bottom_Fill.Controls.Add(Me.RichTextBox_Status)
+        Me.Panel_Main_Bottom_Fill.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.Panel_Main_Bottom_Fill.Location = New System.Drawing.Point(0, 0)
+        Me.Panel_Main_Bottom_Fill.Name = "Panel_Main_Bottom_Fill"
+        Me.Panel_Main_Bottom_Fill.Size = New System.Drawing.Size(757, 100)
+        Me.Panel_Main_Bottom_Fill.TabIndex = 5
+        '
+        'RichTextBox_Status
+        '
+        Me.RichTextBox_Status.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.RichTextBox_Status.Font = New System.Drawing.Font("Microsoft Sans Serif", 12.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        Me.RichTextBox_Status.Location = New System.Drawing.Point(0, 0)
+        Me.RichTextBox_Status.Name = "RichTextBox_Status"
+        Me.RichTextBox_Status.ReadOnly = True
+        Me.RichTextBox_Status.Size = New System.Drawing.Size(757, 100)
+        Me.RichTextBox_Status.TabIndex = 0
+        Me.RichTextBox_Status.Text = ""
+        '
+        'Panel_Main_Botton_Top
+        '
+        Me.Panel_Main_Botton_Top.Controls.Add(Me.Label_Database)
+        Me.Panel_Main_Botton_Top.Controls.Add(Me.TextBox_Collection)
+        Me.Panel_Main_Botton_Top.Dock = System.Windows.Forms.DockStyle.Bottom
+        Me.Panel_Main_Botton_Top.Location = New System.Drawing.Point(0, 100)
+        Me.Panel_Main_Botton_Top.Name = "Panel_Main_Botton_Top"
+        Me.Panel_Main_Botton_Top.Size = New System.Drawing.Size(757, 30)
+        Me.Panel_Main_Botton_Top.TabIndex = 4
+        '
+        'Label_Database
+        '
+        Me.Label_Database.AutoSize = True
+        Me.Label_Database.Font = New System.Drawing.Font("Microsoft Sans Serif", 12.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        Me.Label_Database.Location = New System.Drawing.Point(3, 9)
+        Me.Label_Database.Name = "Label_Database"
+        Me.Label_Database.Size = New System.Drawing.Size(92, 20)
+        Me.Label_Database.TabIndex = 2
+        Me.Label_Database.Text = "Database:"
+        '
+        'TextBox_Collection
+        '
+        Me.TextBox_Collection.BackColor = System.Drawing.SystemColors.Control
+        Me.TextBox_Collection.BorderStyle = System.Windows.Forms.BorderStyle.None
+        Me.TextBox_Collection.Font = New System.Drawing.Font("Microsoft Sans Serif", 12.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        Me.TextBox_Collection.Location = New System.Drawing.Point(101, 10)
+        Me.TextBox_Collection.Name = "TextBox_Collection"
+        Me.TextBox_Collection.ReadOnly = True
+        Me.TextBox_Collection.Size = New System.Drawing.Size(515, 19)
+        Me.TextBox_Collection.TabIndex = 3
+        Me.TextBox_Collection.Text = "No Database Opened."
+        '
+        'Panel_Main_Left
+        '
+        Me.Panel_Main_Left.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.Panel_Main_Left.Dock = System.Windows.Forms.DockStyle.Left
+        Me.Panel_Main_Left.Enabled = False
+        Me.Panel_Main_Left.Location = New System.Drawing.Point(0, 59)
+        Me.Panel_Main_Left.Name = "Panel_Main_Left"
+        Me.Panel_Main_Left.Size = New System.Drawing.Size(200, 548)
+        Me.Panel_Main_Left.TabIndex = 3
+        '
+        'Panel_Main_Fill
+        '
+        Me.Panel_Main_Fill.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.Panel_Main_Fill.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.Panel_Main_Fill.Location = New System.Drawing.Point(200, 59)
+        Me.Panel_Main_Fill.Name = "Panel_Main_Fill"
+        Me.Panel_Main_Fill.Size = New System.Drawing.Size(757, 418)
+        Me.Panel_Main_Fill.TabIndex = 4
+        '
+        'Panel_Right
+        '
+        Me.Panel_Right.Controls.Add(Me.Panel_Right_Fill)
+        Me.Panel_Right.Controls.Add(Me.Panel_Right_Top)
+        Me.Panel_Right.Controls.Add(Me.Panel_Right_Bottom)
+        Me.Panel_Right.Dock = System.Windows.Forms.DockStyle.Right
+        Me.Panel_Right.Location = New System.Drawing.Point(957, 59)
+        Me.Panel_Right.Name = "Panel_Right"
+        Me.Panel_Right.Size = New System.Drawing.Size(399, 548)
+        Me.Panel_Right.TabIndex = 1
+        '
+        'Panel_Right_Fill
+        '
+        Me.Panel_Right_Fill.Controls.Add(Me.PictureBox_FullImage)
+        Me.Panel_Right_Fill.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.Panel_Right_Fill.Location = New System.Drawing.Point(0, 39)
+        Me.Panel_Right_Fill.Name = "Panel_Right_Fill"
+        Me.Panel_Right_Fill.Size = New System.Drawing.Size(399, 309)
+        Me.Panel_Right_Fill.TabIndex = 3
+        '
+        'PictureBox_FullImage
+        '
+        Me.PictureBox_FullImage.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.PictureBox_FullImage.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.PictureBox_FullImage.Location = New System.Drawing.Point(0, 0)
+        Me.PictureBox_FullImage.Name = "PictureBox_FullImage"
+        Me.PictureBox_FullImage.Size = New System.Drawing.Size(399, 309)
+        Me.PictureBox_FullImage.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom
+        Me.PictureBox_FullImage.TabIndex = 0
+        Me.PictureBox_FullImage.TabStop = False
+        '
+        'Panel_Right_Top
+        '
+        Me.Panel_Right_Top.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.Panel_Right_Top.Controls.Add(Me.Button_Rotate)
+        Me.Panel_Right_Top.Dock = System.Windows.Forms.DockStyle.Top
+        Me.Panel_Right_Top.Location = New System.Drawing.Point(0, 0)
+        Me.Panel_Right_Top.Name = "Panel_Right_Top"
+        Me.Panel_Right_Top.Size = New System.Drawing.Size(399, 39)
+        Me.Panel_Right_Top.TabIndex = 1
+        '
+        'Button_Rotate
+        '
+        Me.Button_Rotate.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        Me.Button_Rotate.Location = New System.Drawing.Point(3, 4)
+        Me.Button_Rotate.Name = "Button_Rotate"
+        Me.Button_Rotate.Size = New System.Drawing.Size(66, 23)
+        Me.Button_Rotate.TabIndex = 0
+        Me.Button_Rotate.Text = "Rotate"
+        Me.Button_Rotate.UseVisualStyleBackColor = True
+        '
+        'Panel_Right_Bottom
+        '
+        Me.Panel_Right_Bottom.BackColor = System.Drawing.SystemColors.ButtonHighlight
+        Me.Panel_Right_Bottom.Dock = System.Windows.Forms.DockStyle.Bottom
+        Me.Panel_Right_Bottom.Location = New System.Drawing.Point(0, 348)
+        Me.Panel_Right_Bottom.Name = "Panel_Right_Bottom"
+        Me.Panel_Right_Bottom.Size = New System.Drawing.Size(399, 200)
+        Me.Panel_Right_Bottom.TabIndex = 2
+        '
+        'Form1
+        '
+        Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
+        Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
+        Me.ClientSize = New System.Drawing.Size(1356, 607)
+        Me.Controls.Add(Me.Panel_Main_Fill)
+        Me.Controls.Add(Me.Panel_Main_Bottom)
+        Me.Controls.Add(Me.Panel_Right)
+        Me.Controls.Add(Me.Panel_Main_Left)
+        Me.Controls.Add(Me.Panel_Main_Top)
+        Me.MainMenuStrip = Me.MenuStrip1
+        Me.Name = "Form1"
+        Me.Text = "Embroidery Pattern Browser"
+        Me.Panel_Main_Top.ResumeLayout(False)
+        Me.Panel_Main_Top.PerformLayout()
+        Me.MenuStrip1.ResumeLayout(False)
+        Me.MenuStrip1.PerformLayout()
+        Me.Panel_Main_Bottom.ResumeLayout(False)
+        Me.Panel_Main_Bottom_Fill.ResumeLayout(False)
+        Me.Panel_Main_Botton_Top.ResumeLayout(False)
+        Me.Panel_Main_Botton_Top.PerformLayout()
+        Me.Panel_Right.ResumeLayout(False)
+        Me.Panel_Right_Fill.ResumeLayout(False)
+        CType(Me.PictureBox_FullImage, System.ComponentModel.ISupportInitialize).EndInit()
+        Me.Panel_Right_Top.ResumeLayout(False)
+        Me.ResumeLayout(False)
+
+    End Sub
+    Friend WithEvents Panel_Main_Top As System.Windows.Forms.Panel
+    Friend WithEvents MenuStrip1 As System.Windows.Forms.MenuStrip
+    Friend WithEvents FileToolStripMenuItem As System.Windows.Forms.ToolStripMenuItem
+    Friend WithEvents Panel_Main_Bottom As System.Windows.Forms.Panel
+    Friend WithEvents Panel_Main_Left As System.Windows.Forms.Panel
+    Friend WithEvents Panel_Main_Fill As System.Windows.Forms.Panel
+    Friend WithEvents PictureBox_FullImage As System.Windows.Forms.PictureBox
+    Friend WithEvents ToolsToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents Button_Search As Button
+    Friend WithEvents TextBox_Search As TextBox
+    Friend WithEvents Label_Search As Label
+    Friend WithEvents Panel_Right As Panel
+    Friend WithEvents Panel_Right_Top As Panel
+    Friend WithEvents Button_Rotate As Button
+    Friend WithEvents ComboBox_Filter As ComboBox
+    Friend WithEvents Label_Filter As Label
+    Friend WithEvents TextBox_Collection As TextBox
+    Friend WithEvents Label_Database As Label
+    Friend WithEvents HelpToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents AboutToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents Panel_Main_Bottom_Fill As Panel
+    Friend WithEvents RichTextBox_Status As RichTextBox
+    Friend WithEvents Panel_Main_Botton_Top As Panel
+    Friend WithEvents Panel_Right_Bottom As Panel
+    Friend WithEvents ShowHelpFIleToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents Panel_Right_Fill As Panel
+    Friend WithEvents OpenDatabaseToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents ScanForImagesToolStripMenuItem1 As ToolStripMenuItem
+    Friend WithEvents CreateNewDatabaseToolStripMenuItem As ToolStripMenuItem
+End Class
