@@ -1,4 +1,4 @@
-# Embroidery File Browser - Version 1.0.4
+# Embroidery File Browser
 
 
 ## Quick install: (windows only, 64 bit)
