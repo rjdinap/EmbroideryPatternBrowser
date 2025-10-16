@@ -2,8 +2,13 @@
 ' Install-Package Microsoft.Data.Sqlite
 ' Install-Package SQLitePCLRaw.bundle_e_sqlite3
 ' add reference to System.Management
-'add nuget package: microsoft.web.webview2
-'on the installer, update the Version every time for a new release. it will ask if you want to update the product code - select yes
+' add nuget package: microsoft.web.webview2
+' - on the installer, update the Version every time for a new release. it will ask if you want to update the product code - select yes
+'  in git, Updating the Single “latest” release Each time
+'  Rebuild your installer locally.
+'  in git, Go to the Latest release, click Edit, Delete the old asset, Upload the New .exe/.msi, Publish.
+'  git: You don't need new tags/versions—just keep overwriting that one release.
+
 
 Option Strict On
 Option Explicit On
@@ -12,7 +17,8 @@ Imports System.Data ' DataTable
 Imports System.IO
 Imports System.Text.RegularExpressions
 Imports System.Threading
-Imports System.Diagnostics
+Imports Microsoft.WindowsAPICodePack.Dialogs
+Imports Microsoft.WindowsAPICodePack.Shell
 
 Public Class Form1
 
@@ -33,6 +39,8 @@ Public Class Form1
 
     ' ==== Startup ====
     Private Sub SewingPatternOrganizer_Load(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles MyBase.Load
+
+        StatusProgress.ShowPopup(status:="Setting up...", indeterminate:=True)
         InitializeLogFile()   ' <-- add this line
         Me.WindowState = FormWindowState.Maximized
 
@@ -84,7 +92,7 @@ Public Class Form1
 
         Status("Welcome to EmbroideryPatternBrowser! : Version " & ver & vbCrLf)
         SQLiteOperations.InitializeSQLite(databaseName) ' open our default database
-
+        StatusProgress.ClosePopup()
     End Sub
 
 
@@ -197,12 +205,14 @@ Public Class Form1
     Private Sub Form1_FormClosing(sender As Object, e As FormClosingEventArgs) Handles Me.FormClosing
         If _isShuttingDown Then Exit Sub
         _isShuttingDown = True
+        StatusProgress.ShowPopup(status:="Shutting down, hang on a moment.", indeterminate:=True)
         Try
+            ' Fail-safe: close SQLite (stops insert thread, releases handles)
+            SQLiteOperations.CloseSQLite()
+
             ' Close any progress UI first (best-effort)
             Try : StatusProgress.ClosePopup() : Catch : End Try
 
-            ' Fail-safe: close SQLite (stops insert thread, releases handles)
-            SQLiteOperations.CloseSQLite()
         Catch ex As Exception
             ' Log a short message on-screen and full details to disk (per your Status signature)
             Try : Status("Error: " & ex.Message, ex.ToString()) : Catch : End Try
@@ -304,17 +314,26 @@ Public Class Form1
     'Scan for Images
     Private Sub ScanForImagesToolStripMenuItem1_Click(sender As Object, e As EventArgs) Handles ScanForImagesToolStripMenuItem1.Click
 
+        Dim folderPath As String = ""
+
         ' Pick folder to scan
-        Using fb As New FolderBrowserDialog()
-            fb.Description = "Select a folder to scan for embroidery patterns"
-            fb.ShowNewFolderButton = False
-            fb.RootFolder = Environment.SpecialFolder.MyComputer
-            'if the user presses cancel, delete the database that we just created above
-            If fb.ShowDialog() <> DialogResult.OK Then
+        Using dlg As New CommonOpenFileDialog()
+            dlg.IsFolderPicker = True
+            dlg.Title = "Select a folder to scan for embroidery patterns"
+            dlg.EnsurePathExists = True
+
+            ' Start location (optional)
+            dlg.InitialDirectory = Environment.SpecialFolder.MyComputer.ToString
+            dlg.DefaultDirectory = Environment.SpecialFolder.MyComputer.ToString
+            ' Pin special folders at the top of the nav pane
+            'dlg.AddPlace(KnownFolders.Desktop.Path, FileDialogAddPlaceLocation.Top)
+            'dlg.AddPlace(KnownFolders.Documents.Path, FileDialogAddPlaceLocation.Top)
+            If dlg.ShowDialog() <> CommonFileDialogResult.Ok Then
+                Dim chosen As String = dlg.FileName
                 Return
             End If
+            folderPath = dlg.FileName
 
-            Dim folderPath As String = fb.SelectedPath
             If String.IsNullOrWhiteSpace(folderPath) OrElse Not Directory.Exists(folderPath) Then
                 MessageBox.Show("Invalid folder.")
                 Return

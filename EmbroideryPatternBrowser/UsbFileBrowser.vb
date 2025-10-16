@@ -46,6 +46,14 @@ Public Class UsbFileBrowser
         Me.DoubleBuffered = True
         Me.Dock = DockStyle.Fill
 
+        'drag drop support
+        Me.AllowDrop = True
+        lv.AllowDrop = True
+        AddHandler Me.DragEnter, AddressOf USB_DragEnter
+        AddHandler Me.DragDrop, AddressOf USB_DragDrop
+        AddHandler lv.DragEnter, AddressOf USB_DragEnter
+        AddHandler lv.DragDrop, AddressOf USB_DragDrop
+
         ' Bump font +1pt
         Try
             Dim bigger As New Font(Me.Font.FontFamily, Me.Font.SizeInPoints + 1.0F, Me.Font.Style)
@@ -544,39 +552,82 @@ Public Class UsbFileBrowser
         End Try
     End Sub
 
-    Private Sub MnuPaste_Click(sender As Object, e As EventArgs)
+    'old version, no multi file drag drop support
+    'Private Sub MnuPaste_Click(sender As Object, e As EventArgs)
+    '    If currentFolder Is Nothing OrElse Not Directory.Exists(currentFolder) Then
+    '        MessageBox.Show("Select a target folder first.", "USB Browser", MessageBoxButtons.OK, MessageBoxIcon.Information)
+    '        Return
+    '    End If
+
+    '    Dim src As String = TryGetFileFromClipboard()
+    '    If String.IsNullOrEmpty(src) OrElse Not File.Exists(src) Then
+    '        MessageBox.Show("Clipboard doesn't contain a valid file path.", "USB Browser", MessageBoxButtons.OK, MessageBoxIcon.Information)
+    '        Return
+    '    End If
+
+    '    Dim dest As String = ""
+    '    Try
+    '        dest = Path.Combine(currentFolder, Path.GetFileName(src))
+    '    Catch ex As Exception
+    '        Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+    '        Return
+    '    End Try
+
+    '    Try
+    '        If File.Exists(dest) Then
+    '            If MessageBox.Show("File exists. Overwrite?", "USB Browser", MessageBoxButtons.YesNo, MessageBoxIcon.Question) = DialogResult.No Then
+    '                Return
+    '            End If
+    '        End If
+    '        File.Copy(src, dest, overwrite:=True)
+    '        RefreshView()
+    '    Catch ex As Exception
+    '        Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+    '        MessageBox.Show("Copy failed: " & ex.Message, "USB Browser", MessageBoxButtons.OK, MessageBoxIcon.Error)
+    '    End Try
+    'End Sub
+
+    'drag drop version
+    Private Async Sub MnuPaste_Click(sender As Object, e As EventArgs)
         If currentFolder Is Nothing OrElse Not Directory.Exists(currentFolder) Then
             MessageBox.Show("Select a target folder first.", "USB Browser", MessageBoxButtons.OK, MessageBoxIcon.Information)
             Return
         End If
 
-        Dim src As String = TryGetFileFromClipboard()
-        If String.IsNullOrEmpty(src) OrElse Not File.Exists(src) Then
-            MessageBox.Show("Clipboard doesn't contain a valid file path.", "USB Browser", MessageBoxButtons.OK, MessageBoxIcon.Information)
+        Dim files = TryGetFilesFromClipboard()
+        If files Is Nothing OrElse files.Count = 0 Then
+            MessageBox.Show("Clipboard doesn't contain file paths.", "USB Browser", MessageBoxButtons.OK, MessageBoxIcon.Information)
             Return
         End If
 
-        Dim dest As String = ""
-        Try
-            dest = Path.Combine(currentFolder, Path.GetFileName(src))
-        Catch ex As Exception
-            Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
-            Return
-        End Try
+        Await PasteFilePathsAsync(files)
+    End Sub
 
+    'drag drop helper
+    Private Function TryGetFilesFromClipboard() As List(Of String)
+        Dim out As New List(Of String)
         Try
-            If File.Exists(dest) Then
-                If MessageBox.Show("File exists. Overwrite?", "USB Browser", MessageBoxButtons.YesNo, MessageBoxIcon.Question) = DialogResult.No Then
-                    Return
+            ' Preferred: CF_HDROP
+            If Clipboard.ContainsFileDropList() Then
+                For Each f As String In Clipboard.GetFileDropList()
+                    If Not String.IsNullOrWhiteSpace(f) AndAlso File.Exists(f) Then out.Add(f.Trim())
+                Next
+            End If
+
+            ' Also accept a single Unicode text path (e.g., Explorer "Copy as path")
+            If out.Count = 0 AndAlso Clipboard.ContainsText(TextDataFormat.UnicodeText) Then
+                Dim t = Clipboard.GetText(TextDataFormat.UnicodeText)
+                If Not String.IsNullOrWhiteSpace(t) Then
+                    Dim p = t.Trim().Trim(""""c)
+                    If File.Exists(p) Then out.Add(p)
                 End If
             End If
-            File.Copy(src, dest, overwrite:=True)
-            RefreshView()
         Catch ex As Exception
             Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
-            MessageBox.Show("Copy failed: " & ex.Message, "USB Browser", MessageBoxButtons.OK, MessageBoxIcon.Error)
         End Try
-    End Sub
+        Return out
+    End Function
+
 
     ' ===================== USB enumeration (USB only, light WMI per-drive) =====================
     Private Function GetUsbDriveLetters() As List(Of String)
@@ -769,5 +820,155 @@ Public Class UsbFileBrowser
             Return ""
         End Try
     End Function
+
+
+
+    'drag drop support
+
+    Private Sub USB_DragEnter(sender As Object, e As DragEventArgs)
+        If e.Data Is Nothing Then
+            e.Effect = DragDropEffects.None
+            Return
+        End If
+
+        If currentFolder Is Nothing OrElse Not Directory.Exists(currentFolder) Then
+            e.Effect = DragDropEffects.None
+            Return
+        End If
+
+        If e.Data.GetDataPresent(DataFormats.FileDrop) OrElse
+       e.Data.GetDataPresent(DataFormats.UnicodeText) OrElse
+       e.Data.GetDataPresent(DataFormats.Text) Then
+            e.Effect = DragDropEffects.Copy
+        Else
+            e.Effect = DragDropEffects.None
+        End If
+    End Sub
+
+
+    Private Async Sub USB_DragDrop(sender As Object, e As DragEventArgs)
+        Try
+            If currentFolder Is Nothing OrElse Not Directory.Exists(currentFolder) Then
+                MessageBox.Show("No destination folder is selected/open in the USB browser.", "Drag & Drop",
+                            MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                Return
+            End If
+
+            Dim files As New List(Of String)
+
+            If e.Data.GetDataPresent(DataFormats.FileDrop) Then
+                Dim arr = TryCast(e.Data.GetData(DataFormats.FileDrop), String())
+                If arr IsNot Nothing Then
+                    For Each p In arr
+                        If Not String.IsNullOrWhiteSpace(p) AndAlso File.Exists(p) Then files.Add(p.Trim())
+                    Next
+                End If
+            ElseIf e.Data.GetDataPresent(DataFormats.UnicodeText) Then
+                Dim t = TryCast(e.Data.GetData(DataFormats.UnicodeText), String)
+                If Not String.IsNullOrWhiteSpace(t) Then
+                    Dim p = t.Trim().Trim(""""c)
+                    If File.Exists(p) Then files.Add(p)
+                End If
+            ElseIf e.Data.GetDataPresent(DataFormats.Text) Then
+                Dim t = TryCast(e.Data.GetData(DataFormats.Text), String)
+                If Not String.IsNullOrWhiteSpace(t) Then
+                    Dim p = t.Trim().Trim(""""c)
+                    If File.Exists(p) Then files.Add(p)
+                End If
+            End If
+
+            If files.Count = 0 Then
+                MessageBox.Show("No files were found at the dropped paths.", "Drag & Drop",
+                            MessageBoxButtons.OK, MessageBoxIcon.Information)
+                Return
+            End If
+
+            Await PasteFilePathsAsync(files)
+
+        Catch ex As Exception
+            Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+            MessageBox.Show("Copy failed: " & ex.Message, "Drag & Drop", MessageBoxButtons.OK, MessageBoxIcon.Error)
+        End Try
+    End Sub
+
+    Private Function GenerateUniqueDestinationPath(destPath As String) As String
+        If Not IO.File.Exists(destPath) Then Return destPath
+        Dim dir = IO.Path.GetDirectoryName(destPath)
+        Dim baseName = IO.Path.GetFileNameWithoutExtension(destPath)
+        Dim ext = IO.Path.GetExtension(destPath)
+        Dim i As Integer = 1
+        Do
+            Dim candidate = IO.Path.Combine(dir, $"{baseName} - Copy ({i}){ext}")
+            If Not IO.File.Exists(candidate) Then Return candidate
+            i += 1
+        Loop
+    End Function
+
+    Private Async Function CopyFilesToAsync(srcFiles As IEnumerable(Of String), destDir As String) As Threading.Tasks.Task
+        Await Threading.Tasks.Task.Run(
+            Sub()
+                For Each src In srcFiles
+                    Dim target = IO.Path.Combine(destDir, IO.Path.GetFileName(src))
+                    ' Match your Paste policy: set overwrite:=False (default), or True if you prefer:
+                    If IO.File.Exists(target) Then
+                        target = GenerateUniqueDestinationPath(target)
+                    End If
+                    IO.File.Copy(src, target, overwrite:=False)
+                Next
+            End Sub)
+    End Function
+
+    Private Async Function PasteFilePathsAsync(paths As IEnumerable(Of String)) As Threading.Tasks.Task
+        If currentFolder Is Nothing OrElse Not Directory.Exists(currentFolder) Then
+            MessageBox.Show("Select a target folder first.", "USB Browser", MessageBoxButtons.OK, MessageBoxIcon.Information)
+            Return
+        End If
+
+        Dim srcFiles = paths.Where(Function(p) Not String.IsNullOrWhiteSpace(p) AndAlso File.Exists(p)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray()
+        If srcFiles.Length = 0 Then
+            MessageBox.Show("No valid files to copy.", "USB Browser", MessageBoxButtons.OK, MessageBoxIcon.Information)
+            Return
+        End If
+
+        ' If any destination exists, ask once (bulk decision) to match your current single-file behavior.
+        Dim anyExists = srcFiles.Any(Function(p) File.Exists(Path.Combine(currentFolder, Path.GetFileName(p))))
+        Dim overwriteAll As Boolean = False
+        If anyExists Then
+            If MessageBox.Show("Some files already exist in the destination. Overwrite all?", "USB Browser",
+                               MessageBoxButtons.YesNo, MessageBoxIcon.Question) = DialogResult.Yes Then
+                overwriteAll = True
+            End If
+        End If
+
+        ' Copy loop (async)
+        Await Threading.Tasks.Task.Run(
+            Sub()
+                For Each src In srcFiles
+                    Dim dest = Path.Combine(currentFolder, Path.GetFileName(src))
+                    Try
+                        If File.Exists(dest) Then
+                            If overwriteAll Then
+                                File.Copy(src, dest, overwrite:=True)
+                            Else
+                                ' Generate unique name when not overwriting
+                                dest = GenerateUniqueDestinationPath(dest)
+                                File.Copy(src, dest, overwrite:=False)
+                            End If
+                        Else
+                            File.Copy(src, dest, overwrite:=False)
+                        End If
+                    Catch ex As Exception
+                        ' Log and continue (don’t halt entire batch)
+                        Form1.Status("Copy failed: " & ex.Message, ex.StackTrace.ToString)
+                    End Try
+                Next
+            End Sub)
+
+        ' Refresh UI after copies complete
+        RefreshView()
+    End Function
+
+
+
 
 End Class

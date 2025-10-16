@@ -26,6 +26,23 @@ Public Class VirtualThumbGrid
 
     ' Selection state
     Private _selectedIndex As Integer = -1
+
+    ' === Layout / rendering constants ===
+    Private Const ThumbW As Integer = 200
+    Private Const ThumbH As Integer = 200
+    Private Const Pad As Integer = 12
+    Private Const TileW As Integer = ThumbW + Pad
+    Private Const TileH As Integer = ThumbH + 34
+
+    ' --- Drag / drop support fields ---
+    Private _dragStart As Point
+    Private Const DragThreshold As Integer = 8
+    Private _thumbSize As Size = New Size(ThumbW, ThumbH)  ' your thumb size
+    Private _cellPadding As Padding = New Padding(Pad) ' space around thumb inside each cell
+    Private _cellSize As Size                        ' computed = thumb + padding
+    Private _selectedIndices As New HashSet(Of Integer)() ' ==== Selection (multi-select support) ====
+    Private _anchorIndex As Integer = -1 '' Selection anchor for Shift-range
+
     Public ReadOnly Property SelectedIndex As Integer
         Get
             Return _selectedIndex
@@ -34,6 +51,7 @@ Public Class VirtualThumbGrid
 
     ' Context menu wrapper
     Private _popup As PopupMenuItems
+
 
     ' Bind + optional delegates
     Public Overloads Sub Bind(table As DataTable,
@@ -57,7 +75,17 @@ Public Class VirtualThumbGrid
 
         ResetLayoutMetrics()
         InitWorkers()
-        If _rowCount > 0 Then _selectedIndex = 0 Else _selectedIndex = -1
+        'old version
+        'If _rowCount > 0 Then _selectedIndex = 0 Else _selectedIndex = -1
+        'drag drop version
+        If _rowCount > 0 Then
+            _selectedIndex = 0
+            _selectedIndices.Clear()
+            _selectedIndices.Add(0)
+        Else
+            _selectedIndex = -1
+            _selectedIndices.Clear()
+        End If
         Invalidate()
 
         ' Re-render preview on PictureBox resize so it always fits
@@ -70,12 +98,6 @@ Public Class VirtualThumbGrid
         End If
     End Sub
 
-    ' === Layout / rendering constants ===
-    Private Const ThumbW As Integer = 200
-    Private Const ThumbH As Integer = 200
-    Private Const Pad As Integer = 12
-    Private Const TileW As Integer = ThumbW + Pad
-    Private Const TileH As Integer = ThumbH + 34
 
     ' Prefetch rows around viewport
     Private Const PreloadRowsAbove As Integer = 2
@@ -266,7 +288,7 @@ Public Class VirtualThumbGrid
                                    End Sub, ct)
 
                     If img IsNot Nothing Then
-                        _cache.Add(idx, img)
+                        _cache.Add(idx, img, fullpath)
                         BeginInvoke(DirectCast(Sub() InvalidateTile(idx), Action))
                     End If
                 Catch ex As OperationCanceledException
@@ -304,6 +326,10 @@ Public Class VirtualThumbGrid
 
     Protected Overrides Sub OnResize(e As EventArgs)
         MyBase.OnResize(e)
+        'drag drop stuff
+        _cellSize = New Size(_thumbSize.Width + _cellPadding.Horizontal,
+                         _thumbSize.Height + _cellPadding.Vertical)
+        _cols = Math.Max(1, Math.Floor(Me.ClientSize.Width / Math.Max(1, _cellSize.Width)))
         _hoverTimer.Stop()
         HideTooltip()
         ResetLayoutMetrics()
@@ -374,14 +400,34 @@ Public Class VirtualThumbGrid
                     pe.Graphics.DrawString(name, Me.Font, Brushes.Black, textRect, sf)
                 End Using
 
-                ' selection highlight
-                If idx = _selectedIndex AndAlso Focused Then
-                    Using selPen As New Pen(Color.DodgerBlue, 2.0F)
-                        pe.Graphics.DrawRectangle(selPen, New Rectangle(x - 2, y - 2, ThumbW + 4, TileH + 2))
+                ' selection highlight; old
+                'If idx = _selectedIndex AndAlso Focused Then
+                'Using selPen As New Pen(Color.DodgerBlue, 2.0F)
+                'pe.Graphics.DrawRectangle(selPen, New Rectangle(x - 2, y - 2, ThumbW + 4, TileH + 2))
+                'End Using
+                'ElseIf idx = _selectedIndex Then
+                'Using selPen As New Pen(Color.SteelBlue, 1.0F)
+                'pe.Graphics.DrawRectangle(selPen, New Rectangle(x - 2, y - 2, ThumbW + 4, TileH + 2))
+                'End Using
+                'End If
+                ' selection highlight (multi)
+                ' selection highlight (clear and obvious for all selected)
+                Dim isSelected As Boolean = (_selectedIndices IsNot Nothing AndAlso _selectedIndices.Contains(idx))
+                If isSelected Then
+                    ' Entire tile rect (image + caption area) with a bit of padding
+                    Dim selRect As New Rectangle(x - 3, y - 3, ThumbW + 6, TileH + 6)
+
+                    ' Optional: soft translucent fill so it’s unmistakable
+                    Using fillBrush As New SolidBrush(Color.FromArgb(48, &H1E, &H90, &HFF)) ' ~20% DodgerBlue
+                        pe.Graphics.FillRectangle(fillBrush, selRect)
                     End Using
-                ElseIf idx = _selectedIndex Then
-                    Using selPen As New Pen(Color.SteelBlue, 1.0F)
-                        pe.Graphics.DrawRectangle(selPen, New Rectangle(x - 2, y - 2, ThumbW + 4, TileH + 2))
+
+                    ' Bold border for all selected; slightly bolder for the caret/anchor
+                    Dim isAnchor As Boolean = (idx = _selectedIndex)
+                    Dim borderWidth As Single = If(isAnchor AndAlso Me.Focused, 3.0F, 2.0F)
+                    Dim borderColor As Color = If(isAnchor AndAlso Me.Focused, Color.DodgerBlue, Color.SteelBlue)
+                    Using pen As New Pen(borderColor, borderWidth)
+                        pe.Graphics.DrawRectangle(pen, selRect)
                     End Using
                 End If
             Next
@@ -390,28 +436,109 @@ Public Class VirtualThumbGrid
 
     Private Sub InvalidateTile(index As Integer)
         If index < 0 OrElse index >= _rowCount Then Return
+
         Dim r As Integer = If(_cols = 0, 0, index \ _cols)
         Dim c As Integer = If(_cols = 0, 0, index Mod _cols)
-        Dim x As Integer = AutoScrollPosition.X + Pad + c * TileW
-        Dim y As Integer = AutoScrollPosition.Y + Pad + r * TileH
-        Dim rect As New Rectangle(x - 4, y - 4, ThumbW + 8, TileH + 8)
+
+        ' Virtual (content) coordinates where you *draw* the tile
+        Dim vx As Integer = Pad + c * TileW
+        Dim vy As Integer = Pad + r * TileH
+
+        ' Convert to client coordinates for invalidation:
+        Dim cx As Integer = vx - AutoScrollPosition.X
+        Dim cy As Integer = vy - AutoScrollPosition.Y
+
+        Dim rect As New Rectangle(cx - 4, cy - 4, ThumbW + 8, TileH + 8)
         Invalidate(rect)
     End Sub
 
     ' === Mouse: selection + left/right click ===
+    'Protected Overrides Sub OnMouseDown(e As MouseEventArgs)
+    'MyBase.OnMouseDown(e)
+    '   Focus()
+    '
+    'Dim idx = IndexFromPoint(e.Location)
+    'If idx <> -1 Then
+    '       SetSelectedIndex(idx, ensureVisible:=False)
+
+    'If e.Button = MouseButtons.Left Then
+    '           TryShowFullImageForIndex(idx)
+    'End If
+    'End If
+    'End Sub
+
+
+    'Mouse down: drag drop version
+    ' Mouse down: multi-select aware (Ctrl/Shift) + drag prep
+    ' Mouse down: multi-select aware (Ctrl/Shift) + drag prep
     Protected Overrides Sub OnMouseDown(e As MouseEventArgs)
         MyBase.OnMouseDown(e)
         Focus()
 
         Dim idx = IndexFromPoint(e.Location)
-        If idx <> -1 Then
-            SetSelectedIndex(idx, ensureVisible:=False)
+        If idx = -1 Then Return
 
-            If e.Button = MouseButtons.Left Then
-                TryShowFullImageForIndex(idx)
+        Dim ctrl As Boolean = (Control.ModifierKeys And Keys.Control) = Keys.Control
+        Dim shift As Boolean = (Control.ModifierKeys And Keys.Shift) = Keys.Shift
+
+        If e.Button = MouseButtons.Left Then
+            Dim prev = _selectedIndices.ToList() ' snapshot for painting diff
+
+            If shift AndAlso _selectedIndex >= 0 Then
+                ' SHIFT range select from the anchor (or current if no anchor yet)
+                If _anchorIndex < 0 Then _anchorIndex = _selectedIndex
+                Dim a = Math.Min(_anchorIndex, idx)
+                Dim b = Math.Max(_anchorIndex, idx)
+                _selectedIndices.Clear()
+                For i = a To b
+                    _selectedIndices.Add(i)
+                Next
+                SetSelectedIndex(idx, ensureVisible:=False)
+
+            ElseIf ctrl Then
+                ' CTRL toggle
+                If _selectedIndices.Contains(idx) Then
+                    _selectedIndices.Remove(idx)
+                Else
+                    _selectedIndices.Add(idx)
+                End If
+                _anchorIndex = idx
+                SetSelectedIndex(idx, ensureVisible:=False)
+
+            Else
+                ' Plain click => single selection
+                _selectedIndices.Clear()
+                _selectedIndices.Add(idx)
+                _anchorIndex = idx
+                SetSelectedIndex(idx, ensureVisible:=False)
             End If
+
+            ' Repaint only changed tiles
+            InvalidateSelectionDiff(prev)
+            Invalidate()
+
+            TryShowFullImageForIndex(idx)
+
+            ' Drag prep
+            _dragStart = e.Location
+
+        ElseIf e.Button = MouseButtons.Right Then
+            ' Right-click: keep multi if already contains; otherwise single-select
+            Dim prev = _selectedIndices.ToList()
+            If Not _selectedIndices.Contains(idx) Then
+                _selectedIndices.Clear()
+                _selectedIndices.Add(idx)
+            End If
+            _anchorIndex = idx
+            SetSelectedIndex(idx, ensureVisible:=False)
+            InvalidateSelectionDiff(prev)
+            Invalidate()
+            _popup?.Show(Me, e.Location)
         End If
     End Sub
+
+
+
 
     Protected Overrides Sub OnMouseUp(e As MouseEventArgs)
         MyBase.OnMouseUp(e)
@@ -550,12 +677,63 @@ Public Class VirtualThumbGrid
         Return MyBase.IsInputKey(keyData)
     End Function
 
+    'old version without multi-select
+    'Protected Overrides Sub OnKeyDown(e As KeyEventArgs)
+    '    MyBase.OnKeyDown(e)
+    '    If _rowCount <= 0 Then Return
+
+    '    Dim changed As Boolean = False
+    '    Dim newIndex As Integer = If(_selectedIndex < 0, 0, _selectedIndex)
+
+    '    Dim visibleRows As Integer = Math.Max(1, (ClientSize.Height - Pad) \ TileH)
+    '    Dim pageStep As Integer = visibleRows * Math.Max(1, _cols)
+
+    '    Select Case e.KeyCode
+    '        Case Keys.Left
+    '            If _cols > 0 Then newIndex = Math.Max(0, newIndex - 1) : changed = True
+    '        Case Keys.Right
+    '            If _cols > 0 Then newIndex = Math.Min(_rowCount - 1, newIndex + 1) : changed = True
+    '        Case Keys.Up
+    '            If _cols > 0 Then newIndex = Math.Max(0, newIndex - _cols) : changed = True
+    '        Case Keys.Down
+    '            If _cols > 0 Then newIndex = Math.Min(_rowCount - 1, newIndex + _cols) : changed = True
+    '        Case Keys.PageUp
+    '            newIndex = Math.Max(0, newIndex - pageStep) : changed = True
+    '        Case Keys.PageDown
+    '            newIndex = Math.Min(_rowCount - 1, newIndex + pageStep) : changed = True
+    '        Case Keys.Home
+    '            newIndex = 0 : changed = True
+    '        Case Keys.End
+    '            newIndex = _rowCount - 1 : changed = True
+    '    End Select
+
+    '    If changed Then
+    '        SetSelectedIndex(newIndex, ensureVisible:=True)
+    '        e.Handled = True
+    '    End If
+    'End Sub
+
+    'drag drop multi select version
+    ' Keyboard nav with multi-select semantics:
+    ' - Plain arrows/Page/Home/End: single selection to new caret
+    ' - Shift + arrows/Page/Home/End: range from anchor
+    ' - Ctrl + arrows/Page/Home/End: move caret only (keeps current multi-selection)
+    ' - Ctrl+A: select all
+    ' Keyboard nav with multi-select semantics:
+    ' - Plain arrows/Page/Home/End: single selection to new caret
+    ' - Shift + arrows/Page/Home/End: range from anchor
+    ' - Ctrl + arrows/Page/Home/End: move caret only (keep multi-selection)
+    ' - Ctrl+A: select all
+    ' Keyboard nav with multi-select semantics (no Ctrl+A as requested)
+    ' - Plain arrows/Page/Home/End: single selection
+    ' - Shift + arrows/Page/Home/End: range from anchor
+    ' - Ctrl + arrows/Page/Home/End: move caret only (keep multi)
     Protected Overrides Sub OnKeyDown(e As KeyEventArgs)
         MyBase.OnKeyDown(e)
         If _rowCount <= 0 Then Return
 
-        Dim changed As Boolean = False
         Dim newIndex As Integer = If(_selectedIndex < 0, 0, _selectedIndex)
+        Dim changed As Boolean = False
 
         Dim visibleRows As Integer = Math.Max(1, (ClientSize.Height - Pad) \ TileH)
         Dim pageStep As Integer = visibleRows * Math.Max(1, _cols)
@@ -577,13 +755,38 @@ Public Class VirtualThumbGrid
                 newIndex = 0 : changed = True
             Case Keys.End
                 newIndex = _rowCount - 1 : changed = True
+            Case Else
+                ' not a nav key
         End Select
 
-        If changed Then
+        If Not changed Then Return
+
+        If e.Shift Then
+            Dim prev = _selectedIndices.ToList()
+            If _anchorIndex < 0 Then _anchorIndex = _selectedIndex
+            If _anchorIndex < 0 Then _anchorIndex = 0
+            _selectedIndices.Clear()
+            Dim a = Math.Min(_anchorIndex, newIndex)
+            Dim b = Math.Max(_anchorIndex, newIndex)
+            For i = a To b
+                _selectedIndices.Add(i)
+            Next
             SetSelectedIndex(newIndex, ensureVisible:=True)
-            e.Handled = True
+            InvalidateSelectionDiff(prev)
+
+        ElseIf e.Control Then
+            ' Move caret only
+            SetSelectedIndex(newIndex, ensureVisible:=True)
+
+        Else
+            ' Single selection
+            SetSingleSelection(newIndex, ensureVisible:=True)
         End If
+
+        Invalidate()
+        e.Handled = True
     End Sub
+
 
     Private Sub SetSelectedIndex(index As Integer, Optional ensureVisible As Boolean = False)
         If index < 0 OrElse index >= _rowCount Then Return
@@ -623,20 +826,45 @@ Public Class VirtualThumbGrid
     End Sub
 
     ' === Hover/ToolTip (debounced) ===
+    'old version
+    'Protected Overrides Sub OnMouseMove(e As MouseEventArgs)
+    '    MyBase.OnMouseMove(e)
+    '    Dim idx = IndexFromPoint(e.Location)
+    '    _lastMousePt = e.Location
+
+    '    If idx <> _hoverCandidateIndex Then
+    '        _hoverCandidateIndex = idx
+    '        _hoverTimer.Stop()
+    '        HideTooltip()
+    '        If idx >= 0 AndAlso idx < _rowCount Then
+    '            _hoverTimer.Start()
+    '        End If
+    '    End If
+    'End Sub
+
+    'drag drop version
     Protected Overrides Sub OnMouseMove(e As MouseEventArgs)
         MyBase.OnMouseMove(e)
-        Dim idx = IndexFromPoint(e.Location)
-        _lastMousePt = e.Location
 
-        If idx <> _hoverCandidateIndex Then
-            _hoverCandidateIndex = idx
-            _hoverTimer.Stop()
-            HideTooltip()
-            If idx >= 0 AndAlso idx < _rowCount Then
-                _hoverTimer.Start()
+        ' (your existing hover/tooltip code can stay above/below this)
+
+        ' Drag start
+        If e.Button = MouseButtons.Left Then
+            Dim dx = Math.Abs(e.X - _dragStart.X)
+            Dim dy = Math.Abs(e.Y - _dragStart.Y)
+            If Math.Max(dx, dy) >= DragThreshold Then
+                Dim paths As List(Of String) = GetDragFilePathsAt(e.Location)
+                If paths IsNot Nothing AndAlso paths.Count > 0 Then
+                    Dim data As New DataObject()
+                    data.SetData(DataFormats.FileDrop, paths.ToArray())
+                    data.SetText(paths(0))
+                    DoDragDrop(data, DragDropEffects.Copy)
+                End If
             End If
         End If
     End Sub
+
+
 
     Protected Overrides Sub OnMouseLeave(e As EventArgs)
         MyBase.OnMouseLeave(e)
@@ -766,6 +994,93 @@ Public Class VirtualThumbGrid
         If _pending.TryAdd(index, 0) Then _queue.TryAdd(index)
     End Sub
 
+
+    'drag drop stuff
+
+
+    Private Function GetDragFilePathsAt(pt As Point) As List(Of String)
+        Dim results As New List(Of String)()
+
+        ' 1) Use multi-selection if any
+        If _selectedIndices IsNot Nothing AndAlso _selectedIndices.Count > 0 Then
+            For Each i In _selectedIndices
+                Dim p = GetPathForIndex(i)
+                If Not String.IsNullOrWhiteSpace(p) AndAlso IO.File.Exists(p) Then
+                    results.Add(p)
+                End If
+            Next
+        End If
+
+        ' 2) If none were valid (e.g., selection empty or off), use the hit item
+        If results.Count = 0 Then
+            Dim hitIdx = HitTestThumbIndex(pt)
+            If hitIdx <> -1 Then
+                Dim p = GetPathForIndex(hitIdx)
+                If Not String.IsNullOrWhiteSpace(p) AndAlso IO.File.Exists(p) Then
+                    results.Add(p)
+                End If
+            End If
+        End If
+
+        ' De-dupe (just in case)
+        Return results.Distinct(StringComparer.OrdinalIgnoreCase).ToList()
+    End Function
+
+
+    Private Function HitTestThumbIndex(pt As Point) As Integer
+        Return IndexFromPoint(pt)
+    End Function
+
+    Private Function GetPathForIndex(idx As Integer) As String
+        If idx < 0 OrElse idx >= _rowCount Then Return Nothing
+
+        ' Prefer the cache (fast, already stored)
+        Dim p As String = _cache.GetFullPath(idx)
+        If Not String.IsNullOrWhiteSpace(p) Then Return p
+
+        ' Fallback to backing table if the item hasn't hit cache yet
+        Dim row = _table.Rows(idx)
+        p = SafeStr(row("fullpath"))
+        If Not String.IsNullOrWhiteSpace(p) Then Return p
+
+        Return Nothing
+    End Function
+
+    Private Sub SetSingleSelection(index As Integer, Optional ensureVisible As Boolean = False)
+        If index < 0 OrElse index >= _rowCount Then Return
+        Dim prev = _selectedIndices.ToList() ' snapshot for diff
+        _selectedIndices.Clear()
+        _selectedIndices.Add(index)
+        _anchorIndex = index
+        SetSelectedIndex(index, ensureVisible)
+        InvalidateSelectionDiff(prev)
+    End Sub
+
+    ' Invalidate only the tiles whose selection state changed
+    Private Sub InvalidateSelectionDiff(previous As IEnumerable(Of Integer))
+        Dim beforeSet As New HashSet(Of Integer)(previous)
+        Dim afterSet As New HashSet(Of Integer)(_selectedIndices)
+
+        ' Symmetric difference = changed tiles
+        For Each i In beforeSet.ToArray()
+            If afterSet.Contains(i) Then
+                beforeSet.Remove(i)  ' unchanged
+                afterSet.Remove(i)
+            End If
+        Next
+
+        ' Remaining in beforeSet = deselected; in afterSet = newly selected
+        For Each i In beforeSet
+            InvalidateTile(i)
+        Next
+        For Each i In afterSet
+            InvalidateTile(i)
+        Next
+    End Sub
+
+
+
+
     ' === LRU cache (index -> Image) ===
     Private Class LruImageCache
         Implements IDisposable
@@ -778,6 +1093,7 @@ Public Class VirtualThumbGrid
         Private Class Entry
             Public Property Key As Integer
             Public Property Img As Image
+            Public Property FilePath As String
         End Class
 
         Public Sub New(capacity As Integer)
@@ -790,16 +1106,17 @@ Public Class VirtualThumbGrid
             End SyncLock
         End Function
 
-        Public Sub Add(key As Integer, img As Image)
+        Public Sub Add(key As Integer, img As Image, filepath As String)
             SyncLock _lock
                 If _dict.ContainsKey(key) Then
                     Dim node = _dict(key)
                     node.Value.Img?.Dispose()
                     node.Value.Img = img
+                    node.Value.FilePath = filepath
                     _list.Remove(node)
                     _list.AddFirst(node)
                 Else
-                    Dim ent As New Entry With {.Key = key, .Img = img}
+                    Dim ent As New Entry With {.Key = key, .Img = img, .FilePath = filepath}
                     Dim node = _list.AddFirst(ent)
                     _dict(key) = node
                     If _dict.Count > _cap Then
@@ -824,6 +1141,16 @@ Public Class VirtualThumbGrid
             End SyncLock
         End Function
 
+        Public Function GetFullPath(key As Integer) As String
+            SyncLock _lock
+                Dim node As LinkedListNode(Of Entry) = Nothing
+                If Not _dict.TryGetValue(key, node) Then Return Nothing
+                _list.Remove(node)
+                _list.AddFirst(node)
+                Return node.Value.FilePath
+            End SyncLock
+        End Function
+
         Public Sub Dispose() Implements IDisposable.Dispose
             SyncLock _lock
                 For Each n In _list
@@ -833,5 +1160,7 @@ Public Class VirtualThumbGrid
                 _dict.Clear()
             End SyncLock
         End Sub
-    End Class
+    End Class ' LruImageCache
+
+
 End Class

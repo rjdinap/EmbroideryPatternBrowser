@@ -57,6 +57,18 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_7F9BD120709C1A354928CE7A5E077959"
+        "OwnerKey" = "8:_16B6F127398644759B5A30D6D6CAA4CE"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_8EBBB82033BE735D5C9A26234C46310E"
+        "OwnerKey" = "8:_16B6F127398644759B5A30D6D6CAA4CE"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_A1CA2550D6D24B1A9CEC83D60A984A1F"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -131,6 +143,18 @@
         {
         "MsmKey" = "8:_UNDEFINED"
         "OwnerKey" = "8:_16B6F127398644759B5A30D6D6CAA4CE"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_UNDEFINED"
+        "OwnerKey" = "8:_8EBBB82033BE735D5C9A26234C46310E"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_UNDEFINED"
+        "OwnerKey" = "8:_7F9BD120709C1A354928CE7A5E077959"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -395,6 +419,68 @@
                     }
                 }
             "SourcePath" = "8:Microsoft.Web.WebView2.Wpf.dll"
+            "TargetName" = "8:"
+            "Tag" = "8:"
+            "Folder" = "8:_B27086C724984D5A8A309AFB28142F7F"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:TRUE"
+            "IsolateTo" = "8:"
+            }
+            "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_7F9BD120709C1A354928CE7A5E077959"
+            {
+            "AssemblyRegister" = "3:1"
+            "AssemblyIsInGAC" = "11:FALSE"
+            "AssemblyAsmDisplayName" = "8:Microsoft.WindowsAPICodePack, Version=1.1.2.0, Culture=neutral, processorArchitecture=MSIL"
+                "ScatterAssemblies"
+                {
+                    "_7F9BD120709C1A354928CE7A5E077959"
+                    {
+                    "Name" = "8:Microsoft.WindowsAPICodePack.dll"
+                    "Attributes" = "3:512"
+                    }
+                }
+            "SourcePath" = "8:Microsoft.WindowsAPICodePack.dll"
+            "TargetName" = "8:"
+            "Tag" = "8:"
+            "Folder" = "8:_B27086C724984D5A8A309AFB28142F7F"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:TRUE"
+            "IsolateTo" = "8:"
+            }
+            "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_8EBBB82033BE735D5C9A26234C46310E"
+            {
+            "AssemblyRegister" = "3:1"
+            "AssemblyIsInGAC" = "11:FALSE"
+            "AssemblyAsmDisplayName" = "8:Microsoft.WindowsAPICodePack.Shell, Version=1.1.0.0, Culture=neutral, processorArchitecture=MSIL"
+                "ScatterAssemblies"
+                {
+                    "_8EBBB82033BE735D5C9A26234C46310E"
+                    {
+                    "Name" = "8:Microsoft.WindowsAPICodePack.Shell.dll"
+                    "Attributes" = "3:512"
+                    }
+                }
+            "SourcePath" = "8:Microsoft.WindowsAPICodePack.Shell.dll"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_B27086C724984D5A8A309AFB28142F7F"
@@ -716,15 +802,15 @@
         {
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:Embroidery Pattern Browser"
-        "ProductCode" = "8:{8997F19D-D839-450E-AB96-FB581817D8A5}"
-        "PackageCode" = "8:{2E6D9873-2F81-48C2-9E53-24F648F61EDC}"
+        "ProductCode" = "8:{F809CB75-87C0-4B92-B1FC-8AF8C7C3F84E}"
+        "PackageCode" = "8:{ADCF8D97-9E35-4401-B943-F26BB7339B4A}"
         "UpgradeCode" = "8:{C6977173-032B-4F1E-A690-A52AB50BCFDF}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
         "RemovePreviousVersions" = "11:TRUE"
         "DetectNewerInstalledVersion" = "11:FALSE"
         "InstallAllUsers" = "11:FALSE"
-        "ProductVersion" = "8:1.0.4"
+        "ProductVersion" = "8:1.0.5"
         "Manufacturer" = "8:Default Company Name"
         "ARPHELPTELEPHONE" = "8:"
         "ARPHELPLINK" = "8:"
@@ -1252,7 +1338,7 @@
         {
             "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_16B6F127398644759B5A30D6D6CAA4CE"
             {
-            "SourcePath" = "8:..\\EmbroideryPatternBrowser\\obj\\x64\\Release\\EmbroideryPatternBrowser.exe"
+            "SourcePath" = "8:..\\EmbroideryPatternBrowser\\obj\\x64\\Debug\\EmbroideryPatternBrowser.exe"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_B27086C724984D5A8A309AFB28142F7F"
