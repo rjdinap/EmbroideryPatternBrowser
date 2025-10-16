@@ -434,23 +434,43 @@ Public Class VirtualThumbGrid
         Next
     End Sub
 
+    'old version
+    'Private Sub InvalidateTile(index As Integer)
+    '    If index < 0 OrElse index >= _rowCount Then Return
+
+    '    Dim r As Integer = If(_cols = 0, 0, index \ _cols)
+    '    Dim c As Integer = If(_cols = 0, 0, index Mod _cols)
+
+    '    ' Virtual (content) coordinates where you *draw* the tile
+    '    Dim vx As Integer = Pad + c * TileW
+    '    Dim vy As Integer = Pad + r * TileH
+
+    '    ' Convert to client coordinates for invalidation:
+    '    Dim cx As Integer = vx - AutoScrollPosition.X
+    '    Dim cy As Integer = vy - AutoScrollPosition.Y
+
+    '    Dim rect As New Rectangle(cx - 4, cy - 4, ThumbW + 8, TileH + 8)
+    '    Invalidate(rect)
+    'End Sub
     Private Sub InvalidateTile(index As Integer)
         If index < 0 OrElse index >= _rowCount Then Return
 
         Dim r As Integer = If(_cols = 0, 0, index \ _cols)
         Dim c As Integer = If(_cols = 0, 0, index Mod _cols)
 
-        ' Virtual (content) coordinates where you *draw* the tile
+        ' Virtual (content) coordinates where you draw the tile
         Dim vx As Integer = Pad + c * TileW
         Dim vy As Integer = Pad + r * TileH
 
-        ' Convert to client coordinates for invalidation:
-        Dim cx As Integer = vx - AutoScrollPosition.X
-        Dim cy As Integer = vy - AutoScrollPosition.Y
+        ' Convert to client coordinates for invalidation: ADD AutoScrollPosition
+        Dim cx As Integer = vx + AutoScrollPosition.X
+        Dim cy As Integer = vy + AutoScrollPosition.Y
 
         Dim rect As New Rectangle(cx - 4, cy - 4, ThumbW + 8, TileH + 8)
         Invalidate(rect)
     End Sub
+
+
 
     ' === Mouse: selection + left/right click ===
     'Protected Overrides Sub OnMouseDown(e As MouseEventArgs)

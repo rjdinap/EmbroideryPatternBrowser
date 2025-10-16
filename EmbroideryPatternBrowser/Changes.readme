@@ -1,2 +1,8 @@
 1.0.5 - Added drag and drop functionality. 
 	You can now drag images from the thumbnail panel to the usb drive for copying
+1.0.6 - fix a bug in screen invalidate when scrolling
+
+
+
+TODO:
+On program exit, check if a background copy is still in place and alert the user
