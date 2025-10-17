@@ -1,7 +1,7 @@
 ﻿' requires SQLite
 ' Install-Package Microsoft.Data.Sqlite
 ' Install-Package SQLitePCLRaw.bundle_e_sqlite3
-' add reference to System.Management
+' add reference to System.Management, system,io.compression, system.io
 ' add nuget package: microsoft.web.webview2
 ' - on the installer, update the Version every time for a new release. it will ask if you want to update the product code - select yes
 '  in git, Updating the Single “latest” release Each time
@@ -13,12 +13,10 @@
 Option Strict On
 Option Explicit On
 
-Imports System.Data ' DataTable
 Imports System.IO
 Imports System.Text.RegularExpressions
 Imports System.Threading
 Imports Microsoft.WindowsAPICodePack.Dialogs
-Imports Microsoft.WindowsAPICodePack.Shell
 
 Public Class Form1
 
@@ -49,7 +47,7 @@ Public Class Form1
 
         ' USB-only browser control
         usbBrowser = New UsbFileBrowser() With {.Dock = DockStyle.Fill}
-        Panel_Right_Bottom.Controls.Add(usbBrowser)
+        Panel_Right_Bottom_Fill.Controls.Add(usbBrowser)
         usbBrowser.NavigateToRoot()
 
         Dim ver As String = ""
@@ -93,6 +91,8 @@ Public Class Form1
         Status("Welcome to EmbroideryPatternBrowser! : Version " & ver & vbCrLf)
         SQLiteOperations.InitializeSQLite(databaseName) ' open our default database
         StatusProgress.ClosePopup()
+
+        FastFileScanner.ReportStatus = AddressOf Me.Status
     End Sub
 
 
@@ -203,20 +203,25 @@ Public Class Form1
 
     ' In Form1: ensure we always close the DB when the user clicks the X
     Private Sub Form1_FormClosing(sender As Object, e As FormClosingEventArgs) Handles Me.FormClosing
-        If _isShuttingDown Then Exit Sub
-        _isShuttingDown = True
-        StatusProgress.ShowPopup(status:="Shutting down, hang on a moment.", indeterminate:=True)
-        Try
-            ' Fail-safe: close SQLite (stops insert thread, releases handles)
-            SQLiteOperations.CloseSQLite()
 
-            ' Close any progress UI first (best-effort)
-            Try : StatusProgress.ClosePopup() : Catch : End Try
+        Dim r = usbBrowser.RequestAppClose(e)  ' replace with your instance name
 
-        Catch ex As Exception
-            ' Log a short message on-screen and full details to disk (per your Status signature)
-            Try : Status("Error: " & ex.Message, ex.ToString()) : Catch : End Try
-        End Try
+        If r = DialogResult.Yes Then
+            If _isShuttingDown Then Exit Sub
+            _isShuttingDown = True
+            StatusProgress.ShowPopup(status:="Shutting down, hang on a moment.", indeterminate:=True)
+            Try
+                ' Fail-safe: close SQLite (stops insert thread, releases handles)
+                SQLiteOperations.CloseSQLite()
+
+                ' Close any progress UI first (best-effort)
+                Try : StatusProgress.ClosePopup() : Catch : End Try
+
+            Catch ex As Exception
+                ' Log a short message on-screen and full details to disk (per your Status signature)
+                Try : Status("Error: " & ex.Message, ex.ToString()) : Catch : End Try
+            End Try
+        End If
     End Sub
 
 
@@ -422,13 +427,14 @@ Public Class Form1
     ' Pass stackTrace ONLY for the disk log (kept out of the UI).
     Public Sub Status(ByVal msg As String, Optional ByVal stackTrace As String = Nothing)
         ' --- UI log ---
-        Try
-            RichTextBox_Status.AppendText(vbCrLf & msg)
-            RichTextBox_Status.SelectionStart = Len(RichTextBox_Status.Text)
-            RichTextBox_Status.ScrollToCaret()
-        Catch
-            ' UI is best-effort; ignore
-        End Try
+        If Not Me.IsHandleCreated Then Return
+
+        If Me.InvokeRequired Then
+            ' hop to UI thread
+            Me.BeginInvoke(CType(Sub() SetStatusUI(msg), MethodInvoker))
+        Else
+            SetStatusUI(msg)
+        End If
 
         ' --- Disk log ---
         Try
@@ -449,6 +455,16 @@ Public Class Form1
             ' Never throw from logging
         End Try
     End Sub 'Status
+
+    Private Sub SetStatusUI(msg As String)
+        Try
+            RichTextBox_Status.AppendText(vbCrLf & msg)
+            RichTextBox_Status.SelectionStart = Len(RichTextBox_Status.Text)
+            RichTextBox_Status.ScrollToCaret()
+        Catch
+            ' UI is best-effort; ignore
+        End Try
+    End Sub
 
 
 

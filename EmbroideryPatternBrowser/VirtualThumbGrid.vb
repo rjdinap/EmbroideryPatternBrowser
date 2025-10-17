@@ -1,7 +1,7 @@
 ﻿Imports System.Collections.Concurrent
 Imports System.Drawing.Drawing2D
 Imports System.Threading
-
+Imports System.Collections.Specialized
 
 ' Virtualized thumbnail grid for huge DataTables (100k–1M rows).
 ' Required columns: fullpath, filename, ext, size, metadata.
@@ -70,8 +70,9 @@ Public Class VirtualThumbGrid
         _popup = New PopupMenuItems(
             openDirAction:=Sub() OpenDirectoryForIndex(_selectedIndex),
             editMetadataAction:=Sub() EditMetadataForIndex(_selectedIndex),
-            copyPathAction:=Sub() CopyFullPathForIndex(_selectedIndex)
+             copyPathAction:=Sub() CopySelectedToClipboard()
         )
+        'copyPathAction:=Sub() CopyFullPathForIndex(_selectedIndex) 'old call to handle single item
 
         ResetLayoutMetrics()
         InitWorkers()
@@ -269,7 +270,11 @@ Public Class VirtualThumbGrid
                     End If
 
                     Dim row = _table.Rows(idx)
+                    'this is where we get the filename that we're going to load
+                    'for a normal filename, we can just pull it from fullpath.
+                    'we'll need special processing if it's a .zip file
                     Dim fullpath As String = SafeStr(row("fullpath"))
+
                     If String.IsNullOrEmpty(fullpath) Then
                         Dim d3 As Byte : _pending.TryRemove(idx, d3)
                         Continue For
@@ -863,12 +868,24 @@ Public Class VirtualThumbGrid
     'End Sub
 
     'drag drop version
+    ' Combined hover + drag logic
     Protected Overrides Sub OnMouseMove(e As MouseEventArgs)
         MyBase.OnMouseMove(e)
 
-        ' (your existing hover/tooltip code can stay above/below this)
+        ' --- HOVER / TOOLTIP TRACKING ---
+        _lastMousePt = e.Location
+        Dim idx = IndexFromPoint(e.Location)
 
-        ' Drag start
+        If idx <> _hoverCandidateIndex Then
+            _hoverCandidateIndex = idx
+            _hoverTimer.Stop()
+            HideTooltip()
+            If idx >= 0 AndAlso idx < _rowCount Then
+                _hoverTimer.Start()
+            End If
+        End If
+
+        ' --- DRAG START CHECK ---
         If e.Button = MouseButtons.Left Then
             Dim dx = Math.Abs(e.X - _dragStart.X)
             Dim dy = Math.Abs(e.Y - _dragStart.Y)
@@ -1098,6 +1115,43 @@ Public Class VirtualThumbGrid
         Next
     End Sub
 
+    Private Sub CopySelectedToClipboard()
+        ' Gather selected paths (fall back to caret if none)
+        Dim paths As New List(Of String)()
+
+        If _selectedIndices IsNot Nothing AndAlso _selectedIndices.Count > 0 Then
+            For Each i In _selectedIndices
+                Dim p = GetPathForIndex(i)
+                If Not String.IsNullOrWhiteSpace(p) AndAlso IO.File.Exists(p) Then
+                    paths.Add(p)
+                End If
+            Next
+        ElseIf _selectedIndex >= 0 Then
+            Dim p = GetPathForIndex(_selectedIndex)
+            If Not String.IsNullOrWhiteSpace(p) AndAlso IO.File.Exists(p) Then
+                paths.Add(p)
+            End If
+        End If
+
+        ' Dedup + bail if nothing valid
+        paths = paths.Distinct(StringComparer.OrdinalIgnoreCase).ToList()
+        If paths.Count = 0 Then Exit Sub
+
+        ' Put a FileDropList on the clipboard (what drag & drop uses)
+        Dim data As New DataObject()
+        Dim sc As New StringCollection()
+        sc.AddRange(paths.ToArray())
+        data.SetFileDropList(sc)
+
+        ' Optional: also include text (some targets read text paths)
+        data.SetText(String.Join(Environment.NewLine, paths))
+
+        Try
+            Clipboard.SetDataObject(data, True) ' True = keep after app exits
+        Catch
+            ' swallow clipboard races
+        End Try
+    End Sub
 
 
 

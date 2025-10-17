@@ -1,11 +1,7 @@
-﻿Imports System.Runtime.InteropServices
-Imports System.Runtime.InteropServices.ComTypes
+﻿Imports System.Data.SQLite
 Imports System.IO
-Imports System.Text
-Imports System.Data.SQLite
+Imports System.Runtime.InteropServices
 Imports System.Threading
-Imports System.Collections.Concurrent
-Imports System.Threading.Tasks
 
 Public Module FastFileScanner
 
@@ -79,6 +75,23 @@ Public Module FastFileScanner
     Private Function FindClose(hFindFile As IntPtr) As Boolean
     End Function
 
+
+    ' Set once at startup: FastFileScanner.ReportStatus = AddressOf Form1.Status
+    Public WriteOnly Property ReportStatus As Action(Of String)
+        Set(value As Action(Of String))
+            _reportStatus = value
+        End Set
+    End Property
+    Private _reportStatus As Action(Of String)
+
+    Private Sub Status(msg As String)
+        Dim cb = _reportStatus
+        If cb IsNot Nothing Then
+            cb(msg)
+        End If
+    End Sub
+
+
     ' ---------- Public scan entry point ----------
     ''' <summary>
     ''' Scans 1+ roots, reconciles with DB (files table), returns detailed stats.
@@ -95,6 +108,7 @@ Public Module FastFileScanner
         Dim swTotal As Diagnostics.Stopwatch = Diagnostics.Stopwatch.StartNew()
         Dim swDirs As New Diagnostics.Stopwatch()
         Dim swReconcile As New Diagnostics.Stopwatch()
+        Dim zp As New ZipProcessing
 
         If rootPaths Is Nothing OrElse rootPaths.Count = 0 Then
             Throw New ArgumentException("rootPaths must contain at least one path.")
@@ -110,7 +124,7 @@ Public Module FastFileScanner
 
         ' PASS 1: collect directories
         swDirs.Start()
-        Dim allDirs As New List(Of String)(200000)
+        Dim allDirs As New List(Of String)(900000)
         Dim dirCounter As Integer = 0
         Dim totalRoots As Integer = rootPaths.Count
 
@@ -138,7 +152,7 @@ Public Module FastFileScanner
         swReconcile.Start()
 
         Dim exts As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase) From {
-            ".pes", ".hus", ".vp3", ".xxx", ".dst", ".jef", ".sew", ".vip", ".exp", "pec"
+            ".pes", ".hus", ".vp3", ".xxx", ".dst", ".jef", ".sew", ".vip", ".exp", ".pec", ".zip"
         }
 
         Using conn As New SQLiteConnection("Data Source=" & indexDbPath & ";Version=3;Pooling=True;BinaryGUID=False;")
@@ -215,11 +229,52 @@ ON CONFLICT(fullpath) DO UPDATE SET
                             ' 2b) Reconcile against prefetch map (no SELECTs here)
                             swWrite.Start()
                             For Each f In found
-                                Dim storedPath As String = StripLongPathPrefix(f.FullPath)
-                                Dim fileName As String = Path.GetFileName(storedPath)
-
+                                Dim storedPath As String = ""
+                                Dim fileName As String = ""
                                 Dim prev As (Size As Long, Metadata As String) = Nothing
-                                Dim hadPrev As Boolean = existing.TryGetValue(storedPath, prev)
+                                Dim hadPrev As Boolean
+                                If (f.Ext.ToLower = "zip") Then
+                                    'zip files are special case
+                                    Status("Processing zip: " & f.FullPath)
+                                    Dim zipFound = zp.ScanZipForFileNames(f.FullPath)
+                                    For Each z In zipFound
+                                        storedPath = StripLongPathPrefix(z.FullPath)
+                                        fileName = Path.GetFileName(storedPath)
+                                        prev = Nothing
+                                        hadPrev = existing.TryGetValue(storedPath, prev)
+
+                                        If hadPrev Then
+                                            existing.Remove(storedPath) ' mark seen
+                                            If prev.Size <> z.Size Then
+                                                ' UPDATE
+                                                pP.Value = storedPath
+                                                pF.Value = fileName
+                                                pE.Value = z.Ext.TrimStart("."c)
+                                                pS.Value = z.Size
+                                                pM.Value = ""        ' preserve old metadata
+                                                cmdUpsert.ExecuteNonQuery()
+                                                perRootUpd += 1
+                                            Else
+                                                ' unchanged
+                                            End If
+                                        Else
+                                            ' INSERT
+                                            pP.Value = storedPath
+                                            pF.Value = fileName
+                                            pE.Value = z.Ext.TrimStart("."c)
+                                            pS.Value = z.Size
+                                            pM.Value = ""
+                                            cmdUpsert.ExecuteNonQuery()
+                                            perRootAdd += 1
+                                        End If
+                                    Next
+                                    Continue For 'don't process the zip file itself in the outer loop
+                                End If
+
+                                storedPath = StripLongPathPrefix(f.FullPath)
+                                fileName = Path.GetFileName(storedPath)
+                                prev = Nothing
+                                hadPrev = existing.TryGetValue(storedPath, prev)
 
                                 If hadPrev Then
                                     existing.Remove(storedPath) ' mark seen
@@ -247,7 +302,8 @@ ON CONFLICT(fullpath) DO UPDATE SET
                                 End If
 
                                 perRootFilesFound += 1
-                            Next
+                            Next ' end of the file reconcile loop
+
                             swWrite.Stop()
 
                             If (i Mod 200) = 0 Then
@@ -553,5 +609,11 @@ ON CONFLICT(fullpath) DO UPDATE SET
             Try : cmd.ExecuteNonQuery() : Catch : End Try
         End Using
     End Sub
+
+
+
+
+
+
 
 End Module

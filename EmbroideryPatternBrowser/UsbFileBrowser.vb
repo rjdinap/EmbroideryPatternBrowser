@@ -1,10 +1,9 @@
 ﻿' UsbFileBrowser.vb
 Imports System.IO
-Imports System.Linq
-Imports System.Windows.Forms
-Imports System.Diagnostics
-Imports System.Runtime.InteropServices
 Imports System.Management
+Imports System.Runtime.InteropServices
+Imports System.Threading
+
 
 Public Class UsbFileBrowser
     Inherits UserControl
@@ -40,7 +39,23 @@ Public Class UsbFileBrowser
 
     ' ===== Debounce for WM_DEVICECHANGE (avoid COM calls during input-synchronous dispatch) =====
     Private _deviceChangePending As Boolean = False
-    Private ReadOnly _deviceChangeTimer As New Timer() With {.Interval = 75}
+    Private ReadOnly _deviceChangeTimer As New System.Windows.Forms.Timer() With {.Interval = 75}
+
+    ' ===== Status UI (Panel_Right_Bottom_Top) =====
+    Private _statusLabel As Label = Nothing
+    Private _lastStatusText As String = ""
+    Private _lastStatusTick As Long = 0
+    Private ReadOnly _statusSw As New Stopwatch()
+    ' ===== Status UI (progress polling) =====
+    Private _progressTimer As New System.Windows.Forms.Timer() With {.Interval = 100} ' 100ms UI tick
+    Private _progressTotal As Integer = 0
+    Private _progressIndex As Integer = 0
+    Private _progressActive As Boolean = False
+    ' Serialize copy operations so only one runs at a time
+    Private ReadOnly _copySemaphore As New System.Threading.SemaphoreSlim(1, 1)
+    ' new: one CTS that cancels the current/queued copies
+    Private _copyCts As New CancellationTokenSource()
+
 
     Public Sub New()
         Me.DoubleBuffered = True
@@ -129,6 +144,9 @@ Public Class UsbFileBrowser
                                         Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
                                     End Try
                                 End Sub
+
+        _statusSw.Start()
+        AddHandler _progressTimer.Tick, AddressOf ProgressTimer_Tick
     End Sub
 
 #Region "Device Notifications (RegisterDeviceNotification + WM_DEVICECHANGE)"
@@ -918,56 +936,220 @@ Public Class UsbFileBrowser
             End Sub)
     End Function
 
-    Private Async Function PasteFilePathsAsync(paths As IEnumerable(Of String)) As Threading.Tasks.Task
-        If currentFolder Is Nothing OrElse Not Directory.Exists(currentFolder) Then
-            MessageBox.Show("Select a target folder first.", "USB Browser", MessageBoxButtons.OK, MessageBoxIcon.Information)
-            Return
-        End If
 
-        Dim srcFiles = paths.Where(Function(p) Not String.IsNullOrWhiteSpace(p) AndAlso File.Exists(p)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray()
-        If srcFiles.Length = 0 Then
-            MessageBox.Show("No valid files to copy.", "USB Browser", MessageBoxButtons.OK, MessageBoxIcon.Information)
-            Return
-        End If
+    ' Copies the given files to the currently open folder, showing progress in Panel_Right_Bottom_Top
+    Private Async Function PasteFilePathsAsync(srcFiles As IEnumerable(Of String)) As Threading.Tasks.Task
+        Dim token = _copyCts.Token
+        Await _copySemaphore.WaitAsync(token)
+        Try
+            ' ... validation ...
 
-        ' If any destination exists, ask once (bulk decision) to match your current single-file behavior.
-        Dim anyExists = srcFiles.Any(Function(p) File.Exists(Path.Combine(currentFolder, Path.GetFileName(p))))
-        Dim overwriteAll As Boolean = False
-        If anyExists Then
-            If MessageBox.Show("Some files already exist in the destination. Overwrite all?", "USB Browser",
-                               MessageBoxButtons.YesNo, MessageBoxIcon.Question) = DialogResult.Yes Then
-                overwriteAll = True
-            End If
-        End If
+            Dim list = srcFiles.
+            Where(Function(p) Not String.IsNullOrWhiteSpace(p) AndAlso IO.File.Exists(p)).
+            Distinct(StringComparer.OrdinalIgnoreCase).
+            ToList()
 
-        ' Copy loop (async)
-        Await Threading.Tasks.Task.Run(
+            Dim total As Integer = list.Count
+            SetStatus($"Copying {total} file(s)…")
+
+            ' ---- start UI-driven progress ----
+            _progressTotal = total
+            _progressIndex = 0
+            _progressActive = True
+            _progressTimer.Stop()
+            _progressTimer.Start()
+            ' ----------------------------------
+
+            Await Threading.Tasks.Task.Run(
             Sub()
-                For Each src In srcFiles
-                    Dim dest = Path.Combine(currentFolder, Path.GetFileName(src))
+                For i = 0 To total - 1
+                    token.ThrowIfCancellationRequested()
+
+                    Dim src = list(i)
+                    Dim dest = IO.Path.Combine(currentFolder, IO.Path.GetFileName(src))
+                    If IO.File.Exists(dest) Then dest = GenerateUniqueDestinationPath(dest)
+
+                    ' just bump the index; UI timer will render "Copying file i of N"
+                    Threading.Interlocked.Exchange(_progressIndex, i + 1)
+
                     Try
-                        If File.Exists(dest) Then
-                            If overwriteAll Then
-                                File.Copy(src, dest, overwrite:=True)
-                            Else
-                                ' Generate unique name when not overwriting
-                                dest = GenerateUniqueDestinationPath(dest)
-                                File.Copy(src, dest, overwrite:=False)
-                            End If
-                        Else
-                            File.Copy(src, dest, overwrite:=False)
-                        End If
+                        CopyOneFileWithCancel(src, dest, token)
+                    Catch ex As OperationCanceledException
+                        SetStatus("Copy cancelled.")
+                        Exit For
                     Catch ex As Exception
-                        ' Log and continue (don’t halt entire batch)
-                        Form1.Status("Copy failed: " & ex.Message, ex.StackTrace.ToString)
+                        SetStatus($"Error copying {IO.Path.GetFileName(src)}: {ex.Message}")
                     End Try
                 Next
-            End Sub)
+            End Sub, token).ConfigureAwait(False)
 
-        ' Refresh UI after copies complete
-        RefreshView()
+            ' UI-safe refresh and final status
+            If Me.IsHandleCreated AndAlso Not Me.IsDisposed Then
+                Me.BeginInvoke(DirectCast(Sub()
+                                              RefreshView()
+                                              SetStatus("Copy complete.")
+                                              ClearStatusSoon()
+                                          End Sub, Action))
+            End If
+
+        Catch ex As OperationCanceledException
+            If Me.IsHandleCreated AndAlso Not Me.IsDisposed Then
+                Me.BeginInvoke(DirectCast(Sub()
+                                              RefreshView()
+                                              SetStatus("Copy cancelled.")
+                                              ClearStatusSoon()
+                                          End Sub, Action))
+            End If
+        Finally
+            ' ---- stop UI-driven progress ----
+            _progressActive = False
+            _progressTimer.Stop()
+            ' ---------------------------------
+            ClearStatusSoon()
+            _copySemaphore.Release()
+            If _copyCts.IsCancellationRequested Then _copyCts = New CancellationTokenSource()
+        End Try
     End Function
 
+
+    Private Sub CopyOneFileWithCancel(srcPath As String, destPath As String, token As CancellationToken)
+        Const BUF As Integer = 256 * 1024 ' 256 KB
+        Dim buffer(BUF - 1) As Byte
+
+        ' Use CreateNew so we don’t overwrite; caller already uniquifies name
+        Using sIn As New FileStream(srcPath, FileMode.Open, FileAccess.Read, FileShare.Read)
+            Using sOut As New FileStream(destPath, FileMode.CreateNew, FileAccess.Write, FileShare.None)
+                Dim read As Integer
+                Do
+                    token.ThrowIfCancellationRequested()
+                    read = sIn.Read(buffer, 0, buffer.Length)
+                    If read <= 0 Then Exit Do
+                    sOut.Write(buffer, 0, read)
+                Loop
+            End Using
+        End Using
+    End Sub
+
+    Private Sub EnsureStatusLabel()
+        If _statusLabel IsNot Nothing AndAlso Not _statusLabel.IsDisposed Then Return
+        If Form1 Is Nothing OrElse Form1.IsDisposed Then Return
+
+        Dim host = Form1.Panel_Right_Bottom_Top
+        If host Is Nothing OrElse host.IsDisposed Then Return
+
+        For Each c As Control In host.Controls
+            If TypeOf c Is Label AndAlso String.Equals(c.Name, "lblCopyStatus", StringComparison.OrdinalIgnoreCase) Then
+                _statusLabel = DirectCast(c, Label)
+                Return
+            End If
+        Next
+
+        _statusLabel = New Label() With {
+        .Name = "lblCopyStatus",
+        .AutoSize = True,
+        .Dock = DockStyle.Fill,
+        .TextAlign = ContentAlignment.MiddleLeft
+    }
+        host.Controls.Add(_statusLabel)
+    End Sub
+
+
+    Private Sub SetStatus(text As String)
+        If Form1 Is Nothing OrElse Form1.IsDisposed OrElse Not Form1.IsHandleCreated Then Return
+
+        ' --- Optional throttle: only update if text changed or >= 80ms elapsed ---
+        If Not _statusSw.IsRunning Then _statusSw.Start()
+        Dim nowMs = _statusSw.ElapsedMilliseconds
+        If text = _lastStatusText AndAlso (nowMs - _lastStatusTick) < 80 Then
+            Exit Sub
+        End If
+        _lastStatusText = text
+        _lastStatusTick = nowMs
+        ' ------------------------------------------------------------------------
+
+        Dim apply As Action =
+        Sub()
+            EnsureStatusLabel()
+            If _statusLabel Is Nothing OrElse _statusLabel.IsDisposed Then Exit Sub
+            _statusLabel.Text = text
+            ' Force a paint NOW so intermediate "Copying file i of N" messages are visible
+            _statusLabel.Invalidate()
+            _statusLabel.Update()    ' processes paint for this control
+            ' You can also do: _statusLabel.Refresh()
+        End Sub
+
+        If Form1.InvokeRequired Then
+            ' we’re on a background thread (e.g., inside Task.Run loop)
+            Form1.BeginInvoke(apply)
+        Else
+            ' we’re already on the UI thread (e.g., the initial “Copying N files…”)
+            apply()
+        End If
+    End Sub
+
+    Private Sub ClearStatus()
+        SetStatus(String.Empty)
+    End Sub
+
+
+    Private Async Sub ClearStatusSoon()
+        Await Threading.Tasks.Task.Delay(2500)
+        ClearStatus()
+    End Sub
+
+    Private Sub ProgressTimer_Tick(sender As Object, e As EventArgs)
+        If Not _progressActive Then
+            _progressTimer.Stop()
+            Return
+        End If
+
+        EnsureStatusLabel()
+        If _statusLabel Is Nothing OrElse _statusLabel.IsDisposed Then Return
+
+        Dim idx = Math.Max(0, Math.Min(_progressIndex, _progressTotal))
+        Dim tot = Math.Max(0, _progressTotal)
+
+        If tot <= 0 Then
+            _statusLabel.Text = "Copying..."
+        Else
+            _statusLabel.Text = $"Copying file {idx} of {tot}..."
+        End If
+
+        _statusLabel.Invalidate()
+        _statusLabel.Update()
+    End Sub
+
+    ' Call me from Form1.FormClosing
+    Public Function RequestAppClose(e As FormClosingEventArgs) As DialogResult
+        ' If a copy is running (semaphore taken), ask the user
+        If _copySemaphore.CurrentCount = 0 Then
+            Dim r = MessageBox.Show(
+                "A file copy is in progress." & Environment.NewLine &
+                "Do you want to cancel the copy and exit?",
+                "Exit",
+                MessageBoxButtons.YesNoCancel,
+                MessageBoxIcon.Question)
+
+            Select Case r
+                Case DialogResult.Cancel
+                    e.Cancel = True
+                    Return DialogResult.Cancel
+                Case DialogResult.No
+                    ' Don’t exit. Keep app open until copy finishes.
+                    e.Cancel = True
+                    Return DialogResult.No
+                Case DialogResult.Yes
+                    ' Cancel the running/queued copies
+                    Try : _copyCts.Cancel() : Catch : End Try
+                    ' Optionally show a message
+                    SetStatus("Cancelling copy…")
+                    ' Let closing continue; background loop will observe the token
+                    Return DialogResult.Yes
+            End Select
+        End If
+        Return DialogResult.Yes ' normally allow the close - unless files are being copied
+
+    End Function
 
 
 

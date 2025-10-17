@@ -1,8 +1,15 @@
-1.0.5 - Added drag and drop functionality. 
-	You can now drag images from the thumbnail panel to the usb drive for copying
-1.0.6 - fix a bug in screen invalidate when scrolling
+1.0.7	- fix a bug with tooltip hover. 
+		- add copy status: copying file x of y
+		- if we try to exit the program while a backgound copy is in place, alert the user
+		- zip file scanning added!
+
+1.0.6	- fix a bug in screen invalidate when scrolling
+1.0.5	- Added drag and drop functionality - copy images to the usb drive with a drag and drop
 
 
 
-TODO:
-On program exit, check if a background copy is still in place and alert the user
+TODO: need to add a bunch of logging for diagnostic purposes
+		
+
+
+

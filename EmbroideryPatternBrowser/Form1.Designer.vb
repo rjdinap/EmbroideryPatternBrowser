@@ -51,6 +51,8 @@ Partial Class Form1
         Me.Panel_Right_Top = New System.Windows.Forms.Panel()
         Me.Button_Rotate = New System.Windows.Forms.Button()
         Me.Panel_Right_Bottom = New System.Windows.Forms.Panel()
+        Me.Panel_Right_Bottom_Top = New System.Windows.Forms.Panel()
+        Me.Panel_Right_Bottom_Fill = New System.Windows.Forms.Panel()
         Me.Panel_Main_Top.SuspendLayout()
         Me.MenuStrip1.SuspendLayout()
         Me.Panel_Main_Bottom.SuspendLayout()
@@ -60,6 +62,7 @@ Partial Class Form1
         Me.Panel_Right_Fill.SuspendLayout()
         CType(Me.PictureBox_FullImage, System.ComponentModel.ISupportInitialize).BeginInit()
         Me.Panel_Right_Top.SuspendLayout()
+        Me.Panel_Right_Bottom.SuspendLayout()
         Me.SuspendLayout()
         '
         'Panel_Main_Top
@@ -287,7 +290,7 @@ Partial Class Form1
         Me.Panel_Right_Fill.Dock = System.Windows.Forms.DockStyle.Fill
         Me.Panel_Right_Fill.Location = New System.Drawing.Point(0, 39)
         Me.Panel_Right_Fill.Name = "Panel_Right_Fill"
-        Me.Panel_Right_Fill.Size = New System.Drawing.Size(399, 309)
+        Me.Panel_Right_Fill.Size = New System.Drawing.Size(399, 280)
         Me.Panel_Right_Fill.TabIndex = 3
         '
         'PictureBox_FullImage
@@ -296,7 +299,7 @@ Partial Class Form1
         Me.PictureBox_FullImage.Dock = System.Windows.Forms.DockStyle.Fill
         Me.PictureBox_FullImage.Location = New System.Drawing.Point(0, 0)
         Me.PictureBox_FullImage.Name = "PictureBox_FullImage"
-        Me.PictureBox_FullImage.Size = New System.Drawing.Size(399, 309)
+        Me.PictureBox_FullImage.Size = New System.Drawing.Size(399, 280)
         Me.PictureBox_FullImage.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom
         Me.PictureBox_FullImage.TabIndex = 0
         Me.PictureBox_FullImage.TabStop = False
@@ -324,11 +327,30 @@ Partial Class Form1
         'Panel_Right_Bottom
         '
         Me.Panel_Right_Bottom.BackColor = System.Drawing.SystemColors.ButtonHighlight
+        Me.Panel_Right_Bottom.Controls.Add(Me.Panel_Right_Bottom_Fill)
+        Me.Panel_Right_Bottom.Controls.Add(Me.Panel_Right_Bottom_Top)
         Me.Panel_Right_Bottom.Dock = System.Windows.Forms.DockStyle.Bottom
-        Me.Panel_Right_Bottom.Location = New System.Drawing.Point(0, 348)
+        Me.Panel_Right_Bottom.Location = New System.Drawing.Point(0, 319)
         Me.Panel_Right_Bottom.Name = "Panel_Right_Bottom"
-        Me.Panel_Right_Bottom.Size = New System.Drawing.Size(399, 200)
+        Me.Panel_Right_Bottom.Size = New System.Drawing.Size(399, 229)
         Me.Panel_Right_Bottom.TabIndex = 2
+        '
+        'Panel_Right_Bottom_Top
+        '
+        Me.Panel_Right_Bottom_Top.BackColor = System.Drawing.SystemColors.Control
+        Me.Panel_Right_Bottom_Top.Dock = System.Windows.Forms.DockStyle.Top
+        Me.Panel_Right_Bottom_Top.Location = New System.Drawing.Point(0, 0)
+        Me.Panel_Right_Bottom_Top.Name = "Panel_Right_Bottom_Top"
+        Me.Panel_Right_Bottom_Top.Size = New System.Drawing.Size(399, 34)
+        Me.Panel_Right_Bottom_Top.TabIndex = 0
+        '
+        'Panel_Right_Bottom_Fill
+        '
+        Me.Panel_Right_Bottom_Fill.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.Panel_Right_Bottom_Fill.Location = New System.Drawing.Point(0, 34)
+        Me.Panel_Right_Bottom_Fill.Name = "Panel_Right_Bottom_Fill"
+        Me.Panel_Right_Bottom_Fill.Size = New System.Drawing.Size(399, 195)
+        Me.Panel_Right_Bottom_Fill.TabIndex = 1
         '
         'Form1
         '
@@ -355,6 +377,7 @@ Partial Class Form1
         Me.Panel_Right_Fill.ResumeLayout(False)
         CType(Me.PictureBox_FullImage, System.ComponentModel.ISupportInitialize).EndInit()
         Me.Panel_Right_Top.ResumeLayout(False)
+        Me.Panel_Right_Bottom.ResumeLayout(False)
         Me.ResumeLayout(False)
 
     End Sub
@@ -387,4 +410,6 @@ Partial Class Form1
     Friend WithEvents OpenDatabaseToolStripMenuItem As ToolStripMenuItem
     Friend WithEvents ScanForImagesToolStripMenuItem1 As ToolStripMenuItem
     Friend WithEvents CreateNewDatabaseToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents Panel_Right_Bottom_Fill As Panel
+    Friend WithEvents Panel_Right_Bottom_Top As Panel
 End Class

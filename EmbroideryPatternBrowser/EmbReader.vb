@@ -6,6 +6,7 @@ Public MustInherit Class EmbReader
     Public pattern As New EmbPattern()
     Public reader As BinaryReader
     Public ReadPosition As Integer
+    Protected baseStream As Stream
 
 
 
@@ -13,18 +14,67 @@ Public MustInherit Class EmbReader
     End Sub
 
 
+    'old method - doesn't hanlde zip files
+    'Public Sub Load(path As String)
+    '    Try
+    '        Using fs As New FileStream(path, FileMode.Open, FileAccess.Read)
+    '            reader = New BinaryReader(fs)
+    '            ReadPosition = 0
+    '            Read()
+    '        End Using
+    '    Catch ex As Exception
+    '        'fail silently if we can't load a file
+    '    End Try
+    'End Sub
 
-    Public Sub Load(path As String)
+    ' === NEW: central load that supports disk files AND zip-inner files ===
+    Public Overridable Sub Load(inputPath As String)
+        ' Clean up any previous stream/reader
+        Cleanup()
+
+        Dim zp As New ZipProcessing()
+        Dim parsed = zp.ParseFilename(inputPath)
+        Dim outerPath As String = parsed.Item1      ' path before '?'
+        Dim outerExt As String = parsed.Item2       ' extension of outer path
+        Dim innerPath As String = parsed.Item3      ' path after '?', may be ""
+
         Try
-            Using fs As New FileStream(path, FileMode.Open, FileAccess.Read)
-                reader = New BinaryReader(fs)
-                ReadPosition = 0
-                Read()
-            End Using
-        Catch ex As Exception
-            'fail silently if we can't load a file
+            If IsZipPath(outerExt) AndAlso Not String.IsNullOrEmpty(innerPath) Then
+                ' Read from inside the .zip
+                baseStream = zp.ReadZip(outerPath, innerPath)   ' returns MemoryStream
+            Else
+                ' Normal file on disk (either no '?', or it's not a .zip)
+                baseStream = New FileStream(inputPath, FileMode.Open, FileAccess.Read, FileShare.Read)
+            End If
+
+            reader = New BinaryReader(baseStream)
+            ' Hand off to the format-specific reader
+            Read()
+
+        Finally
+            ' If your derived readers need the stream longer, move disposal out as needed.
+            ' Default behavior: close as before.
+            Cleanup()
         End Try
     End Sub
+
+
+    Protected Overridable Function IsZipPath(ext As String) As Boolean
+        Return String.Equals(ext, ".zip", StringComparison.OrdinalIgnoreCase)
+    End Function
+
+    Protected Overridable Sub Cleanup()
+        If reader IsNot Nothing Then
+            Try : reader.Close() : Catch : End Try
+            reader = Nothing
+        End If
+        If baseStream IsNot Nothing Then
+            Try : baseStream.Dispose() : Catch : End Try
+            baseStream = Nothing
+        End If
+    End Sub
+
+
 
     Public Function GetPattern() As EmbPattern
         Return pattern

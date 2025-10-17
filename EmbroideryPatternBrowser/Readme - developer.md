@@ -7,6 +7,6 @@ It requires SQLite with FTS5 installed. Perform these from the package manager c
  Install-Package SQLitePCLRaw.bundle_e_sqlite3
  (This will add SQLite interop DLLs)
 
-Add reference to System.Management
+Add reference to System.Management, System.IO.Compression
 
 Add nuget package: microsoft.web.webview2 
