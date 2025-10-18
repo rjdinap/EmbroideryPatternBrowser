@@ -235,7 +235,7 @@ ON CONFLICT(fullpath) DO UPDATE SET
                                 Dim hadPrev As Boolean
                                 If (f.Ext.ToLower = "zip") Then
                                     'zip files are special case
-                                    Status("Processing zip: " & f.FullPath)
+                                    'Status("Processing zip: " & f.FullPath)
                                     Dim zipFound = zp.ScanZipForFileNames(f.FullPath)
                                     For Each z In zipFound
                                         storedPath = StripLongPathPrefix(z.FullPath)

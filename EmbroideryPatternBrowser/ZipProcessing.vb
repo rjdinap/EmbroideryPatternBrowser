@@ -5,7 +5,7 @@ Public Class ZipProcessing
     Public Sub New()
     End Sub
 
-
+    Private Const MaxZipEntryBytes As Long = 200L * 1024L * 1024L ' 200 MB guardrail
 
 
     ' Parse filename: returns (pathBeforeQ, extensionOfThatPath, remainderAfterQ)
@@ -44,29 +44,42 @@ Public Class ZipProcessing
         If String.IsNullOrEmpty(zipPath) Then Throw New ArgumentNullException(NameOf(zipPath))
         If innerRelativePath Is Nothing Then innerRelativePath = ""
 
-        ' Normalize "innerRelativePath" to ZIP-style forward slashes and trim leading slashes
         Dim target As String = innerRelativePath.Replace("\"c, "/"c).Trim("/"c)
 
         Using fs As New FileStream(zipPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite Or FileShare.Delete)
             Using za As New ZipArchive(fs, ZipArchiveMode.Read, leaveOpen:=False)
                 Dim found As ZipArchiveEntry = Nothing
                 For Each entry As ZipArchiveEntry In za.Entries
-                    Dim name As String = entry.FullName.Trim("/"c)
-                    If String.Equals(name, target, StringComparison.OrdinalIgnoreCase) Then
-                        found = entry
-                        Exit For
+                    If String.Equals(entry.FullName.Trim("/"c), target, StringComparison.OrdinalIgnoreCase) Then
+                        found = entry : Exit For
                     End If
                 Next
                 If found Is Nothing Then
                     Throw New FileNotFoundException($"Entry not found in zip: {zipPath}?{innerRelativePath}")
                 End If
 
-                Dim ms As New MemoryStream()
+                Dim size As Long = 0
+                Try : size = found.Length : Catch : size = 0 : End Try
+
+                If size < 0 OrElse size > MaxZipEntryBytes Then
+                    Throw New IOException(
+                    $"Zip entry too large ({size:N0} bytes). Max allowed is {MaxZipEntryBytes:N0}. " &
+                    $"Entry: {zipPath}?{innerRelativePath}")
+                End If
+
+                Dim ms As MemoryStream
+                If size > 0 AndAlso size <= Integer.MaxValue Then
+                    ' Preallocate to reduce LOH fragmentation and copies
+                    ms = New MemoryStream(CInt(size))
+                Else
+                    ms = New MemoryStream()
+                End If
+
                 Using zs As Stream = found.Open()
                     zs.CopyTo(ms)
                 End Using
                 ms.Position = 0
-                Return ms   ' caller disposes
+                Return ms ' caller disposes
             End Using
         End Using
     End Function
