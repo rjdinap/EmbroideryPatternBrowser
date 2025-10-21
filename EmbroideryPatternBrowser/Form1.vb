@@ -97,19 +97,39 @@ Public Class Form1
 
 
     ' Kick off the DB open only after the form has actually shown & painted.
-    Private Sub Form1_Shown(sender As Object, e As EventArgs) Handles Me.Shown
-        ' Defer one tick so the popup animates & the form is fully drawn.
-        BeginInvoke(DirectCast(Sub()
-                                   Try
-                                       StatusProgress.SetStatus("Opening database…")
-                                       SQLiteOperations.InitializeSQLite(databaseName)   ' unchanged API
-                                       Status("Database ready.")
-                                   Catch ex As Exception
-                                       Status("Error: " & ex.Message, ex.ToString())
-                                   Finally
-                                       StatusProgress.ClosePopup()
-                                   End Try
-                               End Sub, Action))
+    Private Async Sub Form1_Shown(sender As Object, e As EventArgs) Handles Me.Shown
+        ' Let the form finish its first paint & layout before we start work
+        Await Task.Yield()
+
+        ' Make sure the popup is up and can paint/animate
+        Try
+            StatusProgress.SetStatus("Opening database…")
+            StatusProgress.SetIndeterminate(True)
+            Me.UseWaitCursor = True
+            Me.Update() ' flush one more paint cycle
+        Catch
+        End Try
+
+        Dim dbPath As String = databaseName
+
+        Try
+            ' Run heavy DB open OFF the UI thread
+            Await Task.Run(Sub()
+                               ' Do NOT touch UI directly in here.
+                               SQLiteOperations.InitializeSQLite(dbPath)
+
+                               ' If you want progress from inside InitializeSQLite,
+                               ' expose callbacks there and call BeginInvoke(...) here.
+                           End Sub)
+
+            ' Back on UI thread: update UI
+            Status("Database ready.")
+        Catch ex As Exception
+            Status("Error: " & ex.Message, ex.ToString())
+        Finally
+            Try : StatusProgress.ClosePopup() : Catch : End Try
+            Me.UseWaitCursor = False
+        End Try
     End Sub
 
 
