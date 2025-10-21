@@ -477,7 +477,7 @@ END;"
             Using tmp As New SQLiteCommand("PRAGMA journal_mode;", conn)
                 Try : tmp.ExecuteScalar() : Catch : End Try
             End Using
-            ExecPragma(conn, "synchronous", "OFF")
+            ExecPragma(conn, "synchronous", "NORMAL")
             ExecPragma(conn, "temp_store", "MEMORY")
 
             Dim sqlUpsert As String =

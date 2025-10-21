@@ -31,9 +31,11 @@ Partial Class Form1
         Me.MenuStrip1 = New System.Windows.Forms.MenuStrip()
         Me.FileToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.OpenDatabaseToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
-        Me.ScanForImagesToolStripMenuItem1 = New System.Windows.Forms.ToolStripMenuItem()
+        Me.CloseDatabaseToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
+        Me.CreateNewDatabaseToolStripMenuItem1 = New System.Windows.Forms.ToolStripMenuItem()
         Me.ToolsToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
-        Me.CreateNewDatabaseToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
+        Me.ScanForImagesToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
+        Me.SettingsToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.HelpToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.AboutToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.ShowHelpFIleToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
@@ -51,8 +53,8 @@ Partial Class Form1
         Me.Panel_Right_Top = New System.Windows.Forms.Panel()
         Me.Button_Rotate = New System.Windows.Forms.Button()
         Me.Panel_Right_Bottom = New System.Windows.Forms.Panel()
-        Me.Panel_Right_Bottom_Top = New System.Windows.Forms.Panel()
         Me.Panel_Right_Bottom_Fill = New System.Windows.Forms.Panel()
+        Me.Panel_Right_Bottom_Top = New System.Windows.Forms.Panel()
         Me.Panel_Main_Top.SuspendLayout()
         Me.MenuStrip1.SuspendLayout()
         Me.Panel_Main_Bottom.SuspendLayout()
@@ -142,7 +144,7 @@ Partial Class Form1
         '
         'FileToolStripMenuItem
         '
-        Me.FileToolStripMenuItem.DropDownItems.AddRange(New System.Windows.Forms.ToolStripItem() {Me.OpenDatabaseToolStripMenuItem, Me.ScanForImagesToolStripMenuItem1})
+        Me.FileToolStripMenuItem.DropDownItems.AddRange(New System.Windows.Forms.ToolStripItem() {Me.OpenDatabaseToolStripMenuItem, Me.CloseDatabaseToolStripMenuItem, Me.CreateNewDatabaseToolStripMenuItem1})
         Me.FileToolStripMenuItem.Name = "FileToolStripMenuItem"
         Me.FileToolStripMenuItem.Size = New System.Drawing.Size(41, 23)
         Me.FileToolStripMenuItem.Text = "File"
@@ -150,27 +152,39 @@ Partial Class Form1
         'OpenDatabaseToolStripMenuItem
         '
         Me.OpenDatabaseToolStripMenuItem.Name = "OpenDatabaseToolStripMenuItem"
-        Me.OpenDatabaseToolStripMenuItem.Size = New System.Drawing.Size(175, 24)
+        Me.OpenDatabaseToolStripMenuItem.Size = New System.Drawing.Size(210, 24)
         Me.OpenDatabaseToolStripMenuItem.Text = "Open Database"
         '
-        'ScanForImagesToolStripMenuItem1
+        'CloseDatabaseToolStripMenuItem
         '
-        Me.ScanForImagesToolStripMenuItem1.Name = "ScanForImagesToolStripMenuItem1"
-        Me.ScanForImagesToolStripMenuItem1.Size = New System.Drawing.Size(175, 24)
-        Me.ScanForImagesToolStripMenuItem1.Text = "Scan for Images"
+        Me.CloseDatabaseToolStripMenuItem.Name = "CloseDatabaseToolStripMenuItem"
+        Me.CloseDatabaseToolStripMenuItem.Size = New System.Drawing.Size(210, 24)
+        Me.CloseDatabaseToolStripMenuItem.Text = "Close Database"
+        '
+        'CreateNewDatabaseToolStripMenuItem1
+        '
+        Me.CreateNewDatabaseToolStripMenuItem1.Name = "CreateNewDatabaseToolStripMenuItem1"
+        Me.CreateNewDatabaseToolStripMenuItem1.Size = New System.Drawing.Size(210, 24)
+        Me.CreateNewDatabaseToolStripMenuItem1.Text = "Create New Database"
         '
         'ToolsToolStripMenuItem
         '
-        Me.ToolsToolStripMenuItem.DropDownItems.AddRange(New System.Windows.Forms.ToolStripItem() {Me.CreateNewDatabaseToolStripMenuItem})
+        Me.ToolsToolStripMenuItem.DropDownItems.AddRange(New System.Windows.Forms.ToolStripItem() {Me.ScanForImagesToolStripMenuItem, Me.SettingsToolStripMenuItem})
         Me.ToolsToolStripMenuItem.Name = "ToolsToolStripMenuItem"
         Me.ToolsToolStripMenuItem.Size = New System.Drawing.Size(52, 23)
         Me.ToolsToolStripMenuItem.Text = "Tools"
         '
-        'CreateNewDatabaseToolStripMenuItem
+        'ScanForImagesToolStripMenuItem
         '
-        Me.CreateNewDatabaseToolStripMenuItem.Name = "CreateNewDatabaseToolStripMenuItem"
-        Me.CreateNewDatabaseToolStripMenuItem.Size = New System.Drawing.Size(210, 24)
-        Me.CreateNewDatabaseToolStripMenuItem.Text = "Create New Database"
+        Me.ScanForImagesToolStripMenuItem.Name = "ScanForImagesToolStripMenuItem"
+        Me.ScanForImagesToolStripMenuItem.Size = New System.Drawing.Size(180, 24)
+        Me.ScanForImagesToolStripMenuItem.Text = "Scan for Images"
+        '
+        'SettingsToolStripMenuItem
+        '
+        Me.SettingsToolStripMenuItem.Name = "SettingsToolStripMenuItem"
+        Me.SettingsToolStripMenuItem.Size = New System.Drawing.Size(180, 24)
+        Me.SettingsToolStripMenuItem.Text = "Options"
         '
         'HelpToolStripMenuItem
         '
@@ -335,6 +349,14 @@ Partial Class Form1
         Me.Panel_Right_Bottom.Size = New System.Drawing.Size(399, 229)
         Me.Panel_Right_Bottom.TabIndex = 2
         '
+        'Panel_Right_Bottom_Fill
+        '
+        Me.Panel_Right_Bottom_Fill.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.Panel_Right_Bottom_Fill.Location = New System.Drawing.Point(0, 34)
+        Me.Panel_Right_Bottom_Fill.Name = "Panel_Right_Bottom_Fill"
+        Me.Panel_Right_Bottom_Fill.Size = New System.Drawing.Size(399, 195)
+        Me.Panel_Right_Bottom_Fill.TabIndex = 1
+        '
         'Panel_Right_Bottom_Top
         '
         Me.Panel_Right_Bottom_Top.BackColor = System.Drawing.SystemColors.Control
@@ -343,14 +365,6 @@ Partial Class Form1
         Me.Panel_Right_Bottom_Top.Name = "Panel_Right_Bottom_Top"
         Me.Panel_Right_Bottom_Top.Size = New System.Drawing.Size(399, 34)
         Me.Panel_Right_Bottom_Top.TabIndex = 0
-        '
-        'Panel_Right_Bottom_Fill
-        '
-        Me.Panel_Right_Bottom_Fill.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.Panel_Right_Bottom_Fill.Location = New System.Drawing.Point(0, 34)
-        Me.Panel_Right_Bottom_Fill.Name = "Panel_Right_Bottom_Fill"
-        Me.Panel_Right_Bottom_Fill.Size = New System.Drawing.Size(399, 195)
-        Me.Panel_Right_Bottom_Fill.TabIndex = 1
         '
         'Form1
         '
@@ -408,8 +422,10 @@ Partial Class Form1
     Friend WithEvents ShowHelpFIleToolStripMenuItem As ToolStripMenuItem
     Friend WithEvents Panel_Right_Fill As Panel
     Friend WithEvents OpenDatabaseToolStripMenuItem As ToolStripMenuItem
-    Friend WithEvents ScanForImagesToolStripMenuItem1 As ToolStripMenuItem
-    Friend WithEvents CreateNewDatabaseToolStripMenuItem As ToolStripMenuItem
     Friend WithEvents Panel_Right_Bottom_Fill As Panel
     Friend WithEvents Panel_Right_Bottom_Top As Panel
+    Friend WithEvents CloseDatabaseToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents CreateNewDatabaseToolStripMenuItem1 As ToolStripMenuItem
+    Friend WithEvents ScanForImagesToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents SettingsToolStripMenuItem As ToolStripMenuItem
 End Class

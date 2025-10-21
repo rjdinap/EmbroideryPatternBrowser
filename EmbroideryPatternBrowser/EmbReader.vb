@@ -14,18 +14,6 @@ Public MustInherit Class EmbReader
     End Sub
 
 
-    'old method - doesn't hanlde zip files
-    'Public Sub Load(path As String)
-    '    Try
-    '        Using fs As New FileStream(path, FileMode.Open, FileAccess.Read)
-    '            reader = New BinaryReader(fs)
-    '            ReadPosition = 0
-    '            Read()
-    '        End Using
-    '    Catch ex As Exception
-    '        'fail silently if we can't load a file
-    '    End Try
-    'End Sub
 
     ' === NEW: central load that supports disk files AND zip-inner files ===
     Public Overridable Sub Load(inputPath As String)

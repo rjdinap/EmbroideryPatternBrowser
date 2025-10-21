@@ -88,6 +88,9 @@
   <PropertyGroup>
     <ApplicationManifest>My Project\app.manifest</ApplicationManifest>
   </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>Resources\epb_icon_128_white_bmp32_manual.ico</ApplicationIcon>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="EntityFramework, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, processorArchitecture=MSIL">
       <HintPath>..\packages\EntityFramework.6.4.4\lib\net45\EntityFramework.dll</HintPath>
@@ -202,6 +205,9 @@
       <DependentUpon>Settings.settings</DependentUpon>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
+    <Compile Include="OptionsDialog.vb">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="PecReader.vb" />
     <Compile Include="PesReader.vb" />
     <Compile Include="EmbReaderFactory.vb" />
@@ -238,6 +244,11 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
+    <None Include="Resources\epb_icon_128_white_bmp32_manual.ico" />
+    <None Include="epb_dark_multi.ico" />
+    <Content Include="Help\EmbroideryHelp.odt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="Help\EmbroideryHelp.pdf">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

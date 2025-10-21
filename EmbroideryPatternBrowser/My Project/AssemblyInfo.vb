@@ -1,4 +1,5 @@
-﻿Imports System
+﻿Imports System.Resources
+Imports System
 Imports System.Reflection
 Imports System.Runtime.InteropServices
 
@@ -8,12 +9,12 @@ Imports System.Runtime.InteropServices
 
 ' Review the values of the assembly attributes
 
-<Assembly: AssemblyTitle("EmbroideryPatternBrowser")>
+<Assembly: AssemblyTitle("Embroidery Pattern Browser")>
 <Assembly: AssemblyDescription("Quicly scan and view embroidery patterns on your drive")>
-<Assembly: AssemblyCompany("")> 
+<Assembly: AssemblyCompany("Robert DiNapoli")>
 <Assembly: AssemblyProduct("EmbroideryPatternBrowser")>
 <Assembly: AssemblyCopyright("2025 - Robert DiNapoli")>
-<Assembly: AssemblyTrademark("")> 
+<Assembly: AssemblyTrademark("")>
 
 <Assembly: ComVisible(False)>
 
@@ -31,5 +32,6 @@ Imports System.Runtime.InteropServices
 ' by using the '*' as shown below:
 ' <Assembly: AssemblyVersion("1.0.*")> 
 
-<Assembly: AssemblyVersion("1.0.7.0")>
-<Assembly: AssemblyFileVersion("1.0.7.0")>
+<Assembly: AssemblyVersion("1.0.8.0")>
+<Assembly: AssemblyFileVersion("1.0.8.0")>
+<Assembly: NeutralResourcesLanguage("en")>

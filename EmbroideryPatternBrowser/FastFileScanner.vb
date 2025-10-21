@@ -152,8 +152,9 @@ Public Module FastFileScanner
         swReconcile.Start()
 
         Dim exts As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase) From {
-            ".pes", ".hus", ".vp3", ".xxx", ".dst", ".jef", ".sew", ".vip", ".exp", ".pec", ".zip"
-        }
+    ".pes", ".hus", ".vp3", ".xxx", ".dst", ".jef", ".sew", ".vip", ".exp", ".pec"
+}
+        If My.Settings.IncludeZipFilesInScans Then exts.Add(".zip")
 
         Using conn As New SQLiteConnection("Data Source=" & indexDbPath & ";Version=3;Pooling=True;BinaryGUID=False;")
             conn.Open()
@@ -267,6 +268,7 @@ ON CONFLICT(fullpath) DO UPDATE SET
                                             cmdUpsert.ExecuteNonQuery()
                                             perRootAdd += 1
                                         End If
+                                        perRootFilesFound += 1 ' count files that we find in the zip file
                                     Next
                                     Continue For 'don't process the zip file itself in the outer loop
                                 End If
@@ -418,6 +420,8 @@ ON CONFLICT(fullpath) DO UPDATE SET
             counter += 1
             If (counter Mod 1000) = 0 Then
                 progress?.Invoke("Scanning for directories…", counter, totalRoots)
+                ' After every N directories, yield a millisecond
+                If (counter Mod 2000) = 0 Then Thread.Sleep(2)
             End If
 
             Dim findData As New WIN32_FIND_DATA()

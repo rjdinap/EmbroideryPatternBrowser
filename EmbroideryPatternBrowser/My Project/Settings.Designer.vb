@@ -65,6 +65,54 @@ Namespace My
                 Me("LastDatabasePath") = value
             End Set
         End Property
+        
+        <Global.System.Configuration.UserScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("True")>  _
+        Public Property IncludeZipFilesInScans() As Boolean
+            Get
+                Return CType(Me("IncludeZipFilesInScans"),Boolean)
+            End Get
+            Set
+                Me("IncludeZipFilesInScans") = value
+            End Set
+        End Property
+        
+        <Global.System.Configuration.UserScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("Medium")>  _
+        Public Property ThumbSizeMode() As String
+            Get
+                Return CType(Me("ThumbSizeMode"),String)
+            End Get
+            Set
+                Me("ThumbSizeMode") = value
+            End Set
+        End Property
+        
+        <Global.System.Configuration.UserScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("200")>  _
+        Public Property ThumbWidth() As Integer
+            Get
+                Return CType(Me("ThumbWidth"),Integer)
+            End Get
+            Set
+                Me("ThumbWidth") = value
+            End Set
+        End Property
+        
+        <Global.System.Configuration.UserScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("200")>  _
+        Public Property ThumbHeight() As Integer
+            Get
+                Return CType(Me("ThumbHeight"),Integer)
+            End Get
+            Set
+                Me("ThumbHeight") = value
+            End Set
+        End Property
     End Class
 End Namespace
 

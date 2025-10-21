@@ -27,12 +27,6 @@ Public Class VirtualThumbGrid
     ' Selection state
     Private _selectedIndex As Integer = -1
 
-    ' === Layout / rendering constants ===
-    Private Const ThumbW As Integer = 200
-    Private Const ThumbH As Integer = 200
-    Private Const Pad As Integer = 12
-    Private Const TileW As Integer = ThumbW + Pad
-    Private Const TileH As Integer = ThumbH + 34
 
     ' --- Drag / drop support fields ---
     Private _dragStart As Point
@@ -42,6 +36,49 @@ Public Class VirtualThumbGrid
     Private _cellSize As Size                        ' computed = thumb + padding
     Private _selectedIndices As New HashSet(Of Integer)() ' ==== Selection (multi-select support) ====
     Private _anchorIndex As Integer = -1 '' Selection anchor for Shift-range
+
+    ' --- Virtual/zip data exchange format (between our controls) ---
+    Private Const DATAFMT_VIRTUAL_LIST As String = "EPB_VIRTUAL_FILE_LIST"
+
+    ' Example in VirtualThumbGrid (constructor or Bind):
+    Dim tw As Integer = Math.Max(32, My.Settings.ThumbWidth)
+    Dim th As Integer = Math.Max(32, My.Settings.ThumbHeight)
+
+    ' === Layout / rendering sizes (read from settings) ===
+    Private ReadOnly Property ThumbW As Integer
+        Get
+            Dim w As Integer = My.Settings.ThumbWidth
+            If w <= 0 Then w = 200      ' fallback if someone saved 0/negative
+            If w > 1000 Then w = 1000
+            Return w
+        End Get
+    End Property
+
+    Private ReadOnly Property ThumbH As Integer
+        Get
+            Dim h As Integer = My.Settings.ThumbHeight
+            If h <= 0 Then h = 200      ' fallback
+            If h > 1000 Then h = 1000
+            Return h
+        End Get
+    End Property
+
+    Private Const Pad As Integer = 12
+
+    Private ReadOnly Property TileW As Integer
+        Get
+            Return ThumbW + Pad
+        End Get
+    End Property
+
+    Private ReadOnly Property TileH As Integer
+        Get
+            Return ThumbH + 34   ' room for filename + margins
+        End Get
+    End Property
+
+
+
 
     Public ReadOnly Property SelectedIndex As Integer
         Get
@@ -850,25 +887,7 @@ Public Class VirtualThumbGrid
         Invalidate()
     End Sub
 
-    ' === Hover/ToolTip (debounced) ===
-    'old version
-    'Protected Overrides Sub OnMouseMove(e As MouseEventArgs)
-    '    MyBase.OnMouseMove(e)
-    '    Dim idx = IndexFromPoint(e.Location)
-    '    _lastMousePt = e.Location
 
-    '    If idx <> _hoverCandidateIndex Then
-    '        _hoverCandidateIndex = idx
-    '        _hoverTimer.Stop()
-    '        HideTooltip()
-    '        If idx >= 0 AndAlso idx < _rowCount Then
-    '            _hoverTimer.Start()
-    '        End If
-    '    End If
-    'End Sub
-
-    'drag drop version
-    ' Combined hover + drag logic
     Protected Overrides Sub OnMouseMove(e As MouseEventArgs)
         MyBase.OnMouseMove(e)
 
@@ -892,9 +911,25 @@ Public Class VirtualThumbGrid
             If Math.Max(dx, dy) >= DragThreshold Then
                 Dim paths As List(Of String) = GetDragFilePathsAt(e.Location)
                 If paths IsNot Nothing AndAlso paths.Count > 0 Then
+                    Dim all = paths.Distinct(StringComparer.OrdinalIgnoreCase).ToList()
+                    Dim real = all.Where(Function(p) IO.File.Exists(p)).ToList()
+                    Dim virt = all.Where(Function(p) Not IO.File.Exists(p) AndAlso IsCompositeZipPath(p)).ToList()
+
                     Dim data As New DataObject()
-                    data.SetData(DataFormats.FileDrop, paths.ToArray())
-                    data.SetText(paths(0))
+
+                    ' Real files => CF_HDROP
+                    If real.Count > 0 Then
+                        Dim sc As New Specialized.StringCollection()
+                        sc.AddRange(real.ToArray())
+                        data.SetFileDropList(sc)
+                    End If
+
+                    ' All (real + virtual) => custom format for our USB panel
+                    If all.Count > 0 Then
+                        data.SetData(DATAFMT_VIRTUAL_LIST, False, all)
+                        data.SetText(String.Join(Environment.NewLine, all))
+                    End If
+
                     DoDragDrop(data, DragDropEffects.Copy)
                 End If
             End If
@@ -1038,30 +1073,33 @@ Public Class VirtualThumbGrid
     Private Function GetDragFilePathsAt(pt As Point) As List(Of String)
         Dim results As New List(Of String)()
 
-        ' 1) Use multi-selection if any
+        Dim SubAddPath As Action(Of String) =
+        Sub(p As String)
+            If String.IsNullOrWhiteSpace(p) Then Return
+            Dim s = p.Trim()
+            If IO.File.Exists(s) OrElse IsCompositeZipPath(s) Then
+                results.Add(s)
+            End If
+        End Sub
+
+        ' 1) Multi-selection (if any)
         If _selectedIndices IsNot Nothing AndAlso _selectedIndices.Count > 0 Then
             For Each i In _selectedIndices
-                Dim p = GetPathForIndex(i)
-                If Not String.IsNullOrWhiteSpace(p) AndAlso IO.File.Exists(p) Then
-                    results.Add(p)
-                End If
+                SubAddPath(GetPathForIndex(i))
             Next
         End If
 
-        ' 2) If none were valid (e.g., selection empty or off), use the hit item
+        ' 2) Fallback: hit item
         If results.Count = 0 Then
             Dim hitIdx = HitTestThumbIndex(pt)
-            If hitIdx <> -1 Then
-                Dim p = GetPathForIndex(hitIdx)
-                If Not String.IsNullOrWhiteSpace(p) AndAlso IO.File.Exists(p) Then
-                    results.Add(p)
-                End If
-            End If
+            If hitIdx <> -1 Then SubAddPath(GetPathForIndex(hitIdx))
         End If
 
-        ' De-dupe (just in case)
-        Return results.Distinct(StringComparer.OrdinalIgnoreCase).ToList()
+        ' Dedup
+        results = results.Distinct(StringComparer.OrdinalIgnoreCase).ToList()
+        Return results
     End Function
+
 
 
     Private Function HitTestThumbIndex(pt As Point) As Integer
@@ -1115,43 +1153,43 @@ Public Class VirtualThumbGrid
         Next
     End Sub
 
-    Private Sub CopySelectedToClipboard()
+    Sub CopySelectedToClipboard()
         ' Gather selected paths (fall back to caret if none)
-        Dim paths As New List(Of String)()
+        Dim all As New List(Of String)()
 
         If _selectedIndices IsNot Nothing AndAlso _selectedIndices.Count > 0 Then
             For Each i In _selectedIndices
                 Dim p = GetPathForIndex(i)
-                If Not String.IsNullOrWhiteSpace(p) AndAlso IO.File.Exists(p) Then
-                    paths.Add(p)
-                End If
+                If Not String.IsNullOrWhiteSpace(p) Then all.Add(p.Trim())
             Next
         ElseIf _selectedIndex >= 0 Then
             Dim p = GetPathForIndex(_selectedIndex)
-            If Not String.IsNullOrWhiteSpace(p) AndAlso IO.File.Exists(p) Then
-                paths.Add(p)
-            End If
+            If Not String.IsNullOrWhiteSpace(p) Then all.Add(p.Trim())
         End If
 
-        ' Dedup + bail if nothing valid
-        paths = paths.Distinct(StringComparer.OrdinalIgnoreCase).ToList()
-        If paths.Count = 0 Then Exit Sub
+        all = all.Distinct(StringComparer.OrdinalIgnoreCase).ToList()
+        If all.Count = 0 Then Exit Sub
 
-        ' Put a FileDropList on the clipboard (what drag & drop uses)
+        Dim real = all.Where(Function(p) IO.File.Exists(p)).ToList()
+
         Dim data As New DataObject()
-        Dim sc As New StringCollection()
-        sc.AddRange(paths.ToArray())
-        data.SetFileDropList(sc)
+        If real.Count > 0 Then
+            Dim sc As New Specialized.StringCollection()
+            sc.AddRange(real.ToArray())
+            data.SetFileDropList(sc)
+        End If
 
-        ' Optional: also include text (some targets read text paths)
-        data.SetText(String.Join(Environment.NewLine, paths))
+        ' Always include our full list in the custom format (so USB paste works)
+        data.SetData(DATAFMT_VIRTUAL_LIST, False, all)
+        data.SetText(String.Join(Environment.NewLine, all))
 
         Try
-            Clipboard.SetDataObject(data, True) ' True = keep after app exits
+            Clipboard.SetDataObject(data, True) ' persist even if app closes
         Catch
-            ' swallow clipboard races
+            ' ignore clipboard races
         End Try
     End Sub
+
 
 
 
@@ -1235,6 +1273,68 @@ Public Class VirtualThumbGrid
             End SyncLock
         End Sub
     End Class ' LruImageCache
+
+    Private Shared Function IsCompositeZipPath(s As String) As Boolean
+        Try
+            Dim zp As New ZipProcessing()
+            Dim t = zp.ParseFilename(s)
+            Return Not String.IsNullOrEmpty(t.Item1) AndAlso
+                   String.Equals(t.Item2, ".zip", StringComparison.OrdinalIgnoreCase) AndAlso
+                   Not String.IsNullOrEmpty(t.Item3)
+        Catch
+            Return False
+        End Try
+    End Function
+
+    ' Return fullpaths for currently visible tiles (safe, best-effort).
+    Private Function GetVisibleFilePathsSafe() As List(Of String)
+        Dim list As New List(Of String)
+        Try
+            If _rowCount <= 0 OrElse _cols <= 0 Then Return list
+
+            Dim viewTop As Integer = -AutoScrollPosition.Y
+            Dim viewBottom As Integer = viewTop + ClientSize.Height
+
+            Dim firstVisibleRow As Integer = Math.Max(0, (viewTop - Pad) \ TileH)
+            Dim lastVisibleRow As Integer = Math.Min(Math.Max(0, _rows - 1), (viewBottom - Pad) \ TileH)
+
+            For r = firstVisibleRow To lastVisibleRow
+                For c = 0 To _cols - 1
+                    Dim idx As Integer = r * _cols + c
+                    If idx >= _rowCount Then Exit For
+                    Dim p As String = GetPathForIndex(idx)
+                    If Not String.IsNullOrWhiteSpace(p) Then list.Add(p)
+                Next
+            Next
+        Catch
+            ' ignore; best-effort only
+        End Try
+        Return list
+    End Function
+
+    ''' <summary>
+    ''' Re-read thumbnail size from My.Settings, refresh layout, and optionally
+    ''' invalidate & warm the global thumbnail cache for the new size.
+    ''' </summary>
+    Public Sub ReloadThumbSettings(Optional regenerate As Boolean = False)
+        Dim old As Size = _thumbSize
+        _thumbSize = New Size(ThumbW, ThumbH)
+
+        ResetLayoutMetrics()
+        QueueVisibleAndBuffer()
+        Invalidate()
+
+        If regenerate AndAlso (old.Width <> _thumbSize.Width OrElse old.Height <> _thumbSize.Height) Then
+            EmbThumbnail.ThumbCacheInvalidateBySize(old.Width, old.Height)
+
+            ' warm only what's visible to keep it snappy
+            Dim visible As List(Of String) = GetVisibleFilePathsSafe()
+            If visible IsNot Nothing AndAlso visible.Count > 0 Then
+                EmbThumbnail.ThumbCacheWarmAsync(visible, _thumbSize.Width, _thumbSize.Height, padding:=6, drawBorder:=True, showName:=False)
+            End If
+        End If
+    End Sub
+
 
 
 End Class

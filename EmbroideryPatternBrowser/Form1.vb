@@ -89,11 +89,29 @@ Public Class Form1
         PictureBox_FullImage.BackColor = Color.White   ' optional, nicer look behind transparent areas
 
         Status("Welcome to EmbroideryPatternBrowser! : Version " & ver & vbCrLf)
-        SQLiteOperations.InitializeSQLite(databaseName) ' open our default database
-        StatusProgress.ClosePopup()
+        'SQLiteOperations.InitializeSQLite(databaseName) ' open our default database
+        'StatusProgress.ClosePopup()
 
         FastFileScanner.ReportStatus = AddressOf Me.Status
     End Sub
+
+
+    ' Kick off the DB open only after the form has actually shown & painted.
+    Private Sub Form1_Shown(sender As Object, e As EventArgs) Handles Me.Shown
+        ' Defer one tick so the popup animates & the form is fully drawn.
+        BeginInvoke(DirectCast(Sub()
+                                   Try
+                                       StatusProgress.SetStatus("Opening database…")
+                                       SQLiteOperations.InitializeSQLite(databaseName)   ' unchanged API
+                                       Status("Database ready.")
+                                   Catch ex As Exception
+                                       Status("Error: " & ex.Message, ex.ToString())
+                                   Finally
+                                       StatusProgress.ClosePopup()
+                                   End Try
+                               End Sub, Action))
+    End Sub
+
 
 
 
@@ -164,9 +182,19 @@ Public Class Form1
     End Function
 
 
+    ' ==== Close DB ====
+    Private Sub closedatabase() Handles CloseDatabaseToolStripMenuItem.Click
+        Try
+            SQLiteOperations.CloseSQLite()
+        Catch ex As Exception
+            Status("Error closing database: " & ex.Message, ex.StackTrace.ToString)
+        End Try
+    End Sub
+
+
 
     ' ==== Create DB ====
-    Private Sub CreateNewDatabaseToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles CreateNewDatabaseToolStripMenuItem.Click
+    Private Sub CreateNewDatabaseToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles CreateNewDatabaseToolStripMenuItem1.Click
 
         Try
             Status("Create new database()")
@@ -317,7 +345,7 @@ Public Class Form1
 
 
     'Scan for Images
-    Private Sub ScanForImagesToolStripMenuItem1_Click(sender As Object, e As EventArgs) Handles ScanForImagesToolStripMenuItem1.Click
+    Private Sub ScanForImagesToolStripMenuItem1_Click(sender As Object, e As EventArgs) Handles ScanForImagesToolStripMenuItem.Click
 
         Dim folderPath As String = ""
 
@@ -391,7 +419,33 @@ Public Class Form1
 
 
 
+    ' Tools -> Options
+    Private Sub SettingsToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles SettingsToolStripMenuItem.Click
+        ' capture old size to detect change
+        Dim oldW As Integer = My.Settings.ThumbWidth
+        Dim oldH As Integer = My.Settings.ThumbHeight
 
+        Using dlg As New OptionsDialog()
+            If dlg.ShowDialog(Me) = DialogResult.OK Then
+                Dim changed As Boolean = (oldW <> My.Settings.ThumbWidth) OrElse (oldH <> My.Settings.ThumbHeight)
+
+                ' find the current grid instance hosted in Panel_Main_Fill (you create it dynamically)
+                Dim grid As VirtualThumbGrid = Nothing
+                For Each ctl As Control In Panel_Main_Fill.Controls
+                    grid = TryCast(ctl, VirtualThumbGrid)
+                    If grid IsNot Nothing Then Exit For
+                Next
+
+                If grid IsNot Nothing Then
+                    grid.ReloadThumbSettings(regenerate:=changed)
+                End If
+            End If
+        End Using
+    End Sub
+
+
+
+    'Help
     Private Sub ShowHelpFIleToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles ShowHelpFIleToolStripMenuItem.Click
         Try
             Dim pdfPath = Path.Combine(Application.StartupPath, "Help", HelpPdfName)
@@ -456,6 +510,8 @@ Public Class Form1
         End Try
     End Sub 'Status
 
+
+
     Private Sub SetStatusUI(msg As String)
         Try
             RichTextBox_Status.AppendText(vbCrLf & msg)
@@ -479,7 +535,6 @@ Public Class Form1
     Private Sub TextBox_Search_KeyDown(ByVal sender As System.Object, ByVal e As EventArgs) Handles TextBox_Search.Enter
         TextBox_Search.Text = ""
     End Sub
-
 
 
 End Class

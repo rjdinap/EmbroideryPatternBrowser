@@ -18,6 +18,9 @@ Public Class UsbFileBrowser
     Private ReadOnly mnuOpenExplorer As New ToolStripMenuItem("Open in Explorer")
     Private ReadOnly mnuNewFolder As New ToolStripMenuItem("New Folder…")
     Private ReadOnly mnuPaste As New ToolStripMenuItem("Paste (copy file)")
+    ' --- Virtual/zip data exchange format (between our controls) ---
+    Private Const DATAFMT_VIRTUAL_LIST As String = "EPB_VIRTUAL_FILE_LIST"
+
 
     ' Track which item was right-clicked
     Private _ctxItem As ListViewItem = Nothing
@@ -570,40 +573,7 @@ Public Class UsbFileBrowser
         End Try
     End Sub
 
-    'old version, no multi file drag drop support
-    'Private Sub MnuPaste_Click(sender As Object, e As EventArgs)
-    '    If currentFolder Is Nothing OrElse Not Directory.Exists(currentFolder) Then
-    '        MessageBox.Show("Select a target folder first.", "USB Browser", MessageBoxButtons.OK, MessageBoxIcon.Information)
-    '        Return
-    '    End If
 
-    '    Dim src As String = TryGetFileFromClipboard()
-    '    If String.IsNullOrEmpty(src) OrElse Not File.Exists(src) Then
-    '        MessageBox.Show("Clipboard doesn't contain a valid file path.", "USB Browser", MessageBoxButtons.OK, MessageBoxIcon.Information)
-    '        Return
-    '    End If
-
-    '    Dim dest As String = ""
-    '    Try
-    '        dest = Path.Combine(currentFolder, Path.GetFileName(src))
-    '    Catch ex As Exception
-    '        Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
-    '        Return
-    '    End Try
-
-    '    Try
-    '        If File.Exists(dest) Then
-    '            If MessageBox.Show("File exists. Overwrite?", "USB Browser", MessageBoxButtons.YesNo, MessageBoxIcon.Question) = DialogResult.No Then
-    '                Return
-    '            End If
-    '        End If
-    '        File.Copy(src, dest, overwrite:=True)
-    '        RefreshView()
-    '    Catch ex As Exception
-    '        Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
-    '        MessageBox.Show("Copy failed: " & ex.Message, "USB Browser", MessageBoxButtons.OK, MessageBoxIcon.Error)
-    '    End Try
-    'End Sub
 
     'drag drop version
     Private Async Sub MnuPaste_Click(sender As Object, e As EventArgs)
@@ -625,26 +595,48 @@ Public Class UsbFileBrowser
     Private Function TryGetFilesFromClipboard() As List(Of String)
         Dim out As New List(Of String)
         Try
-            ' Preferred: CF_HDROP
+            ' 1) Our custom format first (if present)
+            If Clipboard.ContainsData(DATAFMT_VIRTUAL_LIST) Then
+                Dim obj = Clipboard.GetData(DATAFMT_VIRTUAL_LIST)
+                If TypeOf obj Is IEnumerable(Of String) Then
+                    For Each s In DirectCast(obj, IEnumerable(Of String))
+                        If Not String.IsNullOrWhiteSpace(s) Then out.Add(s.Trim())
+                    Next
+                ElseIf TypeOf obj Is String Then
+                    Dim lines = CStr(obj).Split({ControlChars.Cr, ControlChars.Lf}, StringSplitOptions.RemoveEmptyEntries)
+                    For Each s In lines
+                        Dim p = s.Trim()
+                        If p.Length > 0 Then out.Add(p)
+                    Next
+                End If
+            End If
+
+            ' 2) Standard FileDrop (real files)
             If Clipboard.ContainsFileDropList() Then
                 For Each f As String In Clipboard.GetFileDropList()
-                    If Not String.IsNullOrWhiteSpace(f) AndAlso File.Exists(f) Then out.Add(f.Trim())
+                    If Not String.IsNullOrWhiteSpace(f) Then out.Add(f.Trim())
                 Next
             End If
 
-            ' Also accept a single Unicode text path (e.g., Explorer "Copy as path")
-            If out.Count = 0 AndAlso Clipboard.ContainsText(TextDataFormat.UnicodeText) Then
+            ' 3) Fallback: text (can contain either real paths or composite .zip?inner paths)
+            If Clipboard.ContainsText(TextDataFormat.UnicodeText) Then
                 Dim t = Clipboard.GetText(TextDataFormat.UnicodeText)
                 If Not String.IsNullOrWhiteSpace(t) Then
-                    Dim p = t.Trim().Trim(""""c)
-                    If File.Exists(p) Then out.Add(p)
+                    For Each line In t.Split({ControlChars.Cr, ControlChars.Lf}, StringSplitOptions.RemoveEmptyEntries)
+                        Dim p = line.Trim().Trim(""""c)
+                        If p.Length > 0 Then out.Add(p)
+                    Next
                 End If
             End If
+
         Catch ex As Exception
             Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
         End Try
-        Return out
+
+        ' Keep both real file paths and composite zip paths
+        Return out.Distinct(StringComparer.OrdinalIgnoreCase).ToList()
     End Function
+
 
 
     ' ===================== USB enumeration (USB only, light WMI per-drive) =====================
@@ -844,17 +836,12 @@ Public Class UsbFileBrowser
     'drag drop support
 
     Private Sub USB_DragEnter(sender As Object, e As DragEventArgs)
-        If e.Data Is Nothing Then
-            e.Effect = DragDropEffects.None
-            Return
+        If e.Data Is Nothing OrElse currentFolder Is Nothing OrElse Not Directory.Exists(currentFolder) Then
+            e.Effect = DragDropEffects.None : Return
         End If
 
-        If currentFolder Is Nothing OrElse Not Directory.Exists(currentFolder) Then
-            e.Effect = DragDropEffects.None
-            Return
-        End If
-
-        If e.Data.GetDataPresent(DataFormats.FileDrop) OrElse
+        If e.Data.GetDataPresent(DATAFMT_VIRTUAL_LIST) OrElse
+       e.Data.GetDataPresent(DataFormats.FileDrop) OrElse
        e.Data.GetDataPresent(DataFormats.UnicodeText) OrElse
        e.Data.GetDataPresent(DataFormats.Text) Then
             e.Effect = DragDropEffects.Copy
@@ -864,50 +851,14 @@ Public Class UsbFileBrowser
     End Sub
 
 
+
     Private Async Sub USB_DragDrop(sender As Object, e As DragEventArgs)
-        Try
-            If currentFolder Is Nothing OrElse Not Directory.Exists(currentFolder) Then
-                MessageBox.Show("No destination folder is selected/open in the USB browser.", "Drag & Drop",
-                            MessageBoxButtons.OK, MessageBoxIcon.Warning)
-                Return
-            End If
-
-            Dim files As New List(Of String)
-
-            If e.Data.GetDataPresent(DataFormats.FileDrop) Then
-                Dim arr = TryCast(e.Data.GetData(DataFormats.FileDrop), String())
-                If arr IsNot Nothing Then
-                    For Each p In arr
-                        If Not String.IsNullOrWhiteSpace(p) AndAlso File.Exists(p) Then files.Add(p.Trim())
-                    Next
-                End If
-            ElseIf e.Data.GetDataPresent(DataFormats.UnicodeText) Then
-                Dim t = TryCast(e.Data.GetData(DataFormats.UnicodeText), String)
-                If Not String.IsNullOrWhiteSpace(t) Then
-                    Dim p = t.Trim().Trim(""""c)
-                    If File.Exists(p) Then files.Add(p)
-                End If
-            ElseIf e.Data.GetDataPresent(DataFormats.Text) Then
-                Dim t = TryCast(e.Data.GetData(DataFormats.Text), String)
-                If Not String.IsNullOrWhiteSpace(t) Then
-                    Dim p = t.Trim().Trim(""""c)
-                    If File.Exists(p) Then files.Add(p)
-                End If
-            End If
-
-            If files.Count = 0 Then
-                MessageBox.Show("No files were found at the dropped paths.", "Drag & Drop",
-                            MessageBoxButtons.OK, MessageBoxIcon.Information)
-                Return
-            End If
-
-            Await PasteFilePathsAsync(files)
-
-        Catch ex As Exception
-            Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
-            MessageBox.Show("Copy failed: " & ex.Message, "Drag & Drop", MessageBoxButtons.OK, MessageBoxIcon.Error)
-        End Try
+        If currentFolder Is Nothing OrElse Not Directory.Exists(currentFolder) Then Return
+        Dim files = DecodeDragData(e.Data)
+        If files Is Nothing OrElse files.Count = 0 Then Return
+        Await PasteFilePathsAsync(files)
     End Sub
+
 
     Private Function GenerateUniqueDestinationPath(destPath As String) As String
         If Not IO.File.Exists(destPath) Then Return destPath
@@ -940,12 +891,11 @@ Public Class UsbFileBrowser
     ' Copies the given files to the currently open folder, showing progress in Panel_Right_Bottom_Top
     Private Async Function PasteFilePathsAsync(srcFiles As IEnumerable(Of String)) As Threading.Tasks.Task
         Dim token = _copyCts.Token
-        Await _copySemaphore.WaitAsync(token)
+        Await _copySemaphore.WaitAsync(token).ConfigureAwait(False)
         Try
-            ' ... validation ...
-
+            ' Keep both real and composite zip paths; just drop blanks/dupes
             Dim list = srcFiles.
-            Where(Function(p) Not String.IsNullOrWhiteSpace(p) AndAlso IO.File.Exists(p)).
+            Where(Function(p) Not String.IsNullOrWhiteSpace(p)).
             Distinct(StringComparer.OrdinalIgnoreCase).
             ToList()
 
@@ -954,7 +904,7 @@ Public Class UsbFileBrowser
 
             ' ---- start UI-driven progress ----
             _progressTotal = total
-            _progressIndex = 0
+            Threading.Interlocked.Exchange(_progressIndex, 0)
             _progressActive = True
             _progressTimer.Stop()
             _progressTimer.Start()
@@ -962,28 +912,50 @@ Public Class UsbFileBrowser
 
             Await Threading.Tasks.Task.Run(
             Sub()
-                For i = 0 To total - 1
+                Dim zp As New ZipProcessing()
+
+                For Each src In list
                     token.ThrowIfCancellationRequested()
 
-                    Dim src = list(i)
-                    Dim dest = IO.Path.Combine(currentFolder, IO.Path.GetFileName(src))
-                    If IO.File.Exists(dest) Then dest = GenerateUniqueDestinationPath(dest)
-
-                    ' just bump the index; UI timer will render "Copying file i of N"
-                    Threading.Interlocked.Exchange(_progressIndex, i + 1)
-
                     Try
-                        CopyOneFileWithCancel(src, dest, token)
+                        Dim destName As String
+                        Dim destPath As String
+                        Dim zipPath As String = Nothing
+                        Dim innerPath As String = Nothing
+
+                        If IsCompositeZipPath(src, zipPath, innerPath) Then
+                            ' Copy out of zip: name comes from inner entry
+                            destName = Path.GetFileName(innerPath)
+                            destPath = Path.Combine(currentFolder, destName)
+                            If File.Exists(destPath) Then destPath = GenerateUniqueDestinationPath(destPath)
+
+                            Using inStream As Stream = zp.ReadZip(zipPath, innerPath)
+                                ' CreateNew + pre-generated unique path preserves your existing behavior
+                                Using outFs As New FileStream(destPath, FileMode.CreateNew, FileAccess.Write, FileShare.None)
+                                    inStream.CopyTo(outFs)
+                                End Using
+                            End Using
+
+                        Else
+                            ' Normal file on disk — keep your no-overwrite policy
+                            destName = Path.GetFileName(src)
+                            destPath = Path.Combine(currentFolder, destName)
+                            If File.Exists(destPath) Then destPath = GenerateUniqueDestinationPath(destPath)
+                            File.Copy(src, destPath, overwrite:=False)
+                        End If
+
                     Catch ex As OperationCanceledException
-                        SetStatus("Copy cancelled.")
-                        Exit For
+                        Throw
                     Catch ex As Exception
-                        SetStatus($"Error copying {IO.Path.GetFileName(src)}: {ex.Message}")
+                        ' Log and continue to next file
+                        Form1.Status("Copy error: " & ex.Message, ex.StackTrace.ToString)
+                    Finally
+                        Threading.Interlocked.Increment(_progressIndex)
                     End Try
                 Next
             End Sub, token).ConfigureAwait(False)
 
-            ' UI-safe refresh and final status
+            ' UI refresh + final status
             If Me.IsHandleCreated AndAlso Not Me.IsDisposed Then
                 Me.BeginInvoke(DirectCast(Sub()
                                               RefreshView()
@@ -1001,15 +973,14 @@ Public Class UsbFileBrowser
                                           End Sub, Action))
             End If
         Finally
-            ' ---- stop UI-driven progress ----
             _progressActive = False
             _progressTimer.Stop()
-            ' ---------------------------------
             ClearStatusSoon()
             _copySemaphore.Release()
             If _copyCts.IsCancellationRequested Then _copyCts = New CancellationTokenSource()
         End Try
     End Function
+
 
 
     Private Sub CopyOneFileWithCancel(srcPath As String, destPath As String, token As CancellationToken)
@@ -1150,6 +1121,76 @@ Public Class UsbFileBrowser
         Return DialogResult.Yes ' normally allow the close - unless files are being copied
 
     End Function
+
+
+    ' True if s is like: C:\folder\pack.zip?inner\path\file.pes
+    Private Shared Function IsCompositeZipPath(s As String, ByRef zipPath As String, ByRef innerPath As String) As Boolean
+        zipPath = Nothing : innerPath = Nothing
+        If String.IsNullOrWhiteSpace(s) Then Return False
+        Try
+            Dim zp As New ZipProcessing()
+            Dim t = zp.ParseFilename(s)
+            ' t.Item1 = before '?', t.Item2 = ext of outer, t.Item3 = after '?'
+            If Not String.IsNullOrEmpty(t.Item1) AndAlso
+               String.Equals(t.Item2, ".zip", StringComparison.OrdinalIgnoreCase) AndAlso
+               Not String.IsNullOrEmpty(t.Item3) Then
+                zipPath = t.Item1 : innerPath = t.Item3
+                Return True
+            End If
+        Catch
+        End Try
+        Return False
+    End Function
+
+    Private Shared Function IsCompositeZipPath(s As String) As Boolean
+        Dim z As String = Nothing, i As String = Nothing
+        Return IsCompositeZipPath(s, z, i)
+    End Function
+
+    ' Turn IDataObject into a list of paths. Can include real files and/or composite zip paths.
+    Private Function DecodeDragData(data As IDataObject) As List(Of String)
+        Dim out As New List(Of String)
+        Try
+            ' Our custom format (list of strings)
+            If data.GetDataPresent(DATAFMT_VIRTUAL_LIST) Then
+                Dim obj = data.GetData(DATAFMT_VIRTUAL_LIST)
+                If TypeOf obj Is IEnumerable(Of String) Then
+                    For Each s In DirectCast(obj, IEnumerable(Of String))
+                        If Not String.IsNullOrWhiteSpace(s) Then out.Add(s.Trim())
+                    Next
+                ElseIf TypeOf obj Is String Then
+                    Dim lines = CStr(obj).Split({ControlChars.Cr, ControlChars.Lf}, StringSplitOptions.RemoveEmptyEntries)
+                    For Each s In lines
+                        Dim p = s.Trim()
+                        If p.Length > 0 Then out.Add(p)
+                    Next
+                End If
+            End If
+
+            ' Standard FileDrop
+            If data.GetDataPresent(DataFormats.FileDrop) Then
+                For Each f As String In DirectCast(data.GetData(DataFormats.FileDrop), String())
+                    If Not String.IsNullOrWhiteSpace(f) Then out.Add(f.Trim())
+                Next
+            End If
+
+            ' Fallback: text
+            If data.GetDataPresent(DataFormats.UnicodeText) AndAlso out.Count = 0 Then
+                Dim t As String = CStr(data.GetData(DataFormats.UnicodeText))
+                If Not String.IsNullOrWhiteSpace(t) Then
+                    For Each line In t.Split({ControlChars.Cr, ControlChars.Lf}, StringSplitOptions.RemoveEmptyEntries)
+                        Dim p = line.Trim().Trim(""""c)
+                        If p.Length > 0 Then out.Add(p)
+                    Next
+                End If
+            End If
+        Catch ex As Exception
+            Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+        End Try
+        Return out.Distinct(StringComparer.OrdinalIgnoreCase).ToList()
+    End Function
+
+
 
 
 

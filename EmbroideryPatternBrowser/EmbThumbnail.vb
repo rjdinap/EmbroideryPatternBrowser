@@ -315,4 +315,56 @@ Public Module EmbThumbnail
         w = Math.Max(1, CInt(Math.Floor(w * s)))
         h = Math.Max(1, CInt(Math.Floor(h * s)))
     End Sub
+
+
+    ' ===================== public cache utilities =====================
+
+    ''' <summary>Remove all cached thumbnails of a given size (w×h).</summary>
+    Public Sub ThumbCacheInvalidateBySize(width As Integer, height As Integer)
+        Dim needle As String = "|" & width & "x" & height & "|"
+        SyncLock _sync
+            Dim keys = _cache.Keys.Where(Function(k) k.IndexOf(needle, StringComparison.Ordinal) >= 0).ToList()
+            For Each k In keys
+                SafeEvict(k)
+            Next
+        End SyncLock
+    End Sub
+
+    ''' <summary>Clear the entire thumbnail cache.</summary>
+    Public Sub ThumbCacheInvalidateAll()
+        SyncLock _sync
+            Dim keys = _cache.Keys.ToList()
+            For Each k In keys
+                SafeEvict(k)
+            Next
+            _lru.Clear()
+        End SyncLock
+    End Sub
+
+    ''' <summary>Warm (pre-generate) the cache for the provided file paths at size w×h.</summary>
+    Public Sub ThumbCacheWarmAsync(paths As IEnumerable(Of String),
+                               width As Integer, height As Integer,
+                               Optional padding As Integer = 6,
+                               Optional drawBorder As Boolean = True,
+                               Optional showName As Boolean = False)
+        If paths Is Nothing Then Return
+        Threading.Tasks.Task.Run(
+        Sub()
+            For Each p In paths
+                Try
+                    Dim img As Image = GenerateFromFile(p, width, height, padding, Color.White, drawBorder, showName)
+                    img?.Dispose() ' AddToCache inside GenerateFromFile; dispose local
+                Catch
+                    ' best-effort warm
+                End Try
+            Next
+        End Sub)
+    End Sub
+
+    ' =================== end public cache utilities ===================
+
+
+
+
+
 End Module
