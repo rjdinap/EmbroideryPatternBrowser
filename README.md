@@ -1,8 +1,8 @@
-# Embroidery File Browser - 1.0.8
+# Embroidery File Browser - 1.0.10
 
 
 ## Quick install: (windows only, 64 bit)
-If you just want to install and use the program, click on this link to grab the installer from here: https://github.com/rjdinap/EmbroideryPatternBrowser/releases/download/Latest_Installer/EmbroideryPatternBrowserInstaller.msi
+If you just want to install and use the program, click on this link to grab the installer from here: [https://github.com/rjdinap/EmbroideryPatternBrowser/releases/download/Latest_Installer/EmbroideryPatternBrowserInstaller.msi](https://github.com/rjdinap/EmbroideryPatternBrowser/releases/download/Version1.0.10/EmbroideryPatternBrowserInstaller_1.0.10.msi)
 
 
 ## Description
