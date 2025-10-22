@@ -1,8 +1,7 @@
-﻿Imports System.Data
+﻿Imports System.Collections.Concurrent
 Imports System.Data.SQLite
-Imports System.Collections.Concurrent
-Imports System.Threading
 Imports System.Text
+Imports System.Threading
 
 Module SQLiteOperations
 
@@ -10,7 +9,6 @@ Module SQLiteOperations
     Private _insertThread As Thread = Nothing
     Private _queue As New ConcurrentQueue(Of FileRecord)()
     Private _hasItems As New AutoResetEvent(False)
-    Private _queueRoom As New AutoResetEvent(True)
     Private _stopRequested As Boolean = False
     Private _started As Boolean = False
 
@@ -19,6 +17,8 @@ Module SQLiteOperations
     Private _idleFlushMs As Integer = 400
     Private _busyTimeoutMs As Integer = 10000
     Private _optimizeOnStop As Boolean = True
+
+    Private _maintenanceRunning As Integer = 0 ' 0 = false, 1 = true
 
     ' Backpressure
     Private _maxQueueInMemory As Integer = 1_000_000
@@ -40,7 +40,7 @@ Module SQLiteOperations
                                 Optional enableWal As Boolean = True,
                                 Optional aggressivePragmas As Boolean = True,
                                 Optional batchSize As Integer = 20000,
-                                Optional optimizeOnStop As Boolean = True)
+                                Optional optimizeOnStop As Boolean = False)
 
         If String.IsNullOrWhiteSpace(dbFilePath) Then Throw New ArgumentException("dbFilePath is required.")
         If IsSystemishPath(dbFilePath) Then
@@ -53,7 +53,7 @@ Module SQLiteOperations
 
         Try
             Form1.databaseName = dbFilePath
-            Form1.TextBox_Collection.Text = Form1.databaseName
+            Form1.TextBox_Database.Text = Form1.databaseName
         Catch ex As Exception
             Form1.Status("Error: " & ex.Message, ex.StackTrace)
         End Try
@@ -82,18 +82,17 @@ Module SQLiteOperations
         _started = True
         _insertThread.Start()
 
-        Form1.Status("New database opened: " & dbFilePath)
-        Form1.Status(CountRows().ToString() & " images found in our database.")
     End Sub
 
     Public Sub CloseSQLite()
         StopInsertThread()
+        _dbPath = ""
     End Sub
 
     Public Sub StopInsertThread()
         Try
             Form1.databaseName = "No Collection Opened."
-            Form1.TextBox_Collection.Text = Form1.databaseName
+            Form1.TextBox_Database.Text = Form1.databaseName
         Catch ex As Exception
             Form1.Status("Error: " & ex.Message, ex.StackTrace)
         End Try
@@ -109,15 +108,7 @@ Module SQLiteOperations
         Form1.Status("Database closed. Index writer stopped.")
     End Sub
 
-    ' ---------- Queue API ----------
-    Public Sub EnqueueInsert(fullPath As String, fileSize As Long, ext As String, Optional metadata As String = "")
-        While Threading.Volatile.Read(_queuedCount) >= _maxQueueInMemory
-            _queueRoom.WaitOne(25)
-        End While
-        _queue.Enqueue(New FileRecord(fullPath, fileSize, ext, metadata))
-        Interlocked.Increment(_queuedCount)
-        _hasItems.Set()
-    End Sub
+
 
     ' ---------- Search ----------
     Public Function SearchParsed(userText As String, Optional keyword2 As String = Nothing,
@@ -185,80 +176,7 @@ Module SQLiteOperations
         Return 0
     End Function
 
-    ' ---------- Maintenance ----------
-    Public Sub RebuildIndex(Optional doVacuum As Boolean = True, Optional doOptimize As Boolean = True)
-        If String.IsNullOrWhiteSpace(_dbPath) Then Exit Sub
 
-        Dim wasRunning = _started
-        If wasRunning Then StopInsertThread()
-
-        Try
-            Using conn As New SQLiteConnection(BuildConnStr())
-                conn.Open()
-                ExecPragma(conn, "busy_timeout", _busyTimeoutMs.ToString())
-
-                Using tx = conn.BeginTransaction()
-                    Using del As New SQLiteCommand("DELETE FROM files_fts;", conn, tx)
-                        del.ExecuteNonQuery()
-                    End Using
-                    Using repop As New SQLiteCommand(
-                        "INSERT INTO files_fts(rowid, fullpath, filename, ext, metadata) " &
-                        "SELECT rowid, fullpath, filename, ext, metadata FROM files;", conn, tx)
-                        repop.ExecuteNonQuery()
-                    End Using
-                    tx.Commit()
-                End Using
-
-                If doVacuum Then
-                    Form1.Status("Vacuuming index...")
-                    Using vac As New SQLiteCommand("VACUUM;", conn)
-                        vac.CommandTimeout = 0
-                        vac.ExecuteNonQuery()
-                    End Using
-                End If
-
-                If doOptimize Then
-                    Form1.Status("Optimizing FTS index...")
-                    Try
-                        Using opt As New SQLiteCommand("INSERT INTO files_fts(files_fts) VALUES('optimize');", conn)
-                            opt.CommandTimeout = 0
-                            opt.ExecuteNonQuery()
-                        End Using
-                    Catch ex As Exception
-                        Form1.Status("Error: " & ex.Message, ex.StackTrace)
-                    End Try
-                End If
-            End Using
-        Catch ex As Exception
-            Form1.Status("Error: " & ex.Message, ex.StackTrace)
-            MsgBox("RebuildIndex error: " & ex.Message, MsgBoxStyle.Critical, "SQLite")
-        Finally
-            If wasRunning Then
-                Try
-                    InitializeSQLite(_dbPath)
-                Catch ex As Exception
-                    Form1.Status("Error: " & ex.Message, ex.StackTrace)
-                End Try
-            End If
-        End Try
-    End Sub
-
-    Public Sub OptimizeIndex()
-        Try
-            Using conn As New SQLiteConnection(BuildConnStr())
-                conn.Open()
-                ExecPragma(conn, "busy_timeout", _busyTimeoutMs.ToString())
-                Using cmd As New SQLiteCommand("INSERT INTO files_fts(files_fts) VALUES('optimize');", conn)
-                    cmd.CommandTimeout = 0
-                    cmd.ExecuteNonQuery()
-                End Using
-                Form1.Status("FTS index optimized.")
-            End Using
-        Catch ex As Exception
-            Form1.Status("Error: " & ex.Message, ex.StackTrace)
-            MsgBox("OptimizeIndex error: " & ex.Message, MsgBoxStyle.Exclamation, "SQLite")
-        End Try
-    End Sub
 
     ' ---------- Update single row metadata ----------
     Public Function UpdateMetadataRow(row As DataRow, newMetadata As String) As Boolean
@@ -367,43 +285,6 @@ END;"
         End Using
     End Sub
 
-    ' ---------- FTS Defer / Rebuild helpers ----------
-    Public Sub DisableFtsTriggers(conn As SQLiteConnection)
-        ' Drops only our known triggers (idempotent)
-        Using cmd As New SQLiteCommand("
-            DROP TRIGGER IF EXISTS files_ai;
-            DROP TRIGGER IF EXISTS files_ad;
-            DROP TRIGGER IF EXISTS files_au;", conn)
-            cmd.ExecuteNonQuery()
-        End Using
-    End Sub
-
-    Public Sub EnableFtsTriggers(conn As SQLiteConnection)
-        ' Recreate the schema triggers (safe to call; uses IF NOT EXISTS)
-        CreateSchema(conn, created:=False)
-    End Sub
-
-    Public Sub RebuildFtsFromFiles(conn As SQLiteConnection)
-        Using tx = conn.BeginTransaction()
-            Using del As New SQLiteCommand("DELETE FROM files_fts;", conn, tx)
-                del.ExecuteNonQuery()
-            End Using
-            Using repop As New SQLiteCommand("
-                INSERT INTO files_fts(rowid, fullpath, filename, ext, metadata)
-                SELECT rowid, fullpath, filename, ext, metadata FROM files;", conn, tx)
-                repop.ExecuteNonQuery()
-            End Using
-            tx.Commit()
-        End Using
-        ' Optional optimize
-        Try
-            Using opt As New SQLiteCommand("INSERT INTO files_fts(files_fts) VALUES('optimize');", conn)
-                opt.CommandTimeout = 0
-                opt.ExecuteNonQuery()
-            End Using
-        Catch
-        End Try
-    End Sub
 
     ' ---------- Ensure FTS5 ----------
     Private Sub EnsureFts5Available(conn As SQLiteConnection)
@@ -690,6 +571,109 @@ ON CONFLICT(fullpath) DO UPDATE SET
         End Try
         Return False
     End Function
+
+
+    'maintenance / rebuild index stuff
+
+    Public Sub RebuildIndex(Optional doVacuum As Boolean = False, Optional doOptimize As Boolean = True)
+        If String.IsNullOrWhiteSpace(_dbPath) Then Exit Sub
+
+        StatusProgress.ShowPopup(status:="Rebuilding index... this may take a while", indeterminate:=True)
+
+        Dim wasRunning = _started
+        If wasRunning Then StopInsertThread()
+
+        Try
+            Using conn As New SQLiteConnection(BuildConnStr())
+                conn.Open()
+                ExecPragma(conn, "busy_timeout", _busyTimeoutMs.ToString())
+
+                Using tx = conn.BeginTransaction()
+                    Using rb As New SQLiteCommand("INSERT INTO files_fts(files_fts) VALUES('rebuild');", conn, tx)
+                        rb.CommandTimeout = 0
+                        rb.ExecuteNonQuery()
+                    End Using
+                    tx.Commit()
+                End Using
+
+                If doOptimize Then
+                    Using opt As New SQLiteCommand("INSERT INTO files_fts(files_fts) VALUES('optimize');", conn)
+                        opt.CommandTimeout = 0
+                        opt.ExecuteNonQuery()
+                    End Using
+                End If
+
+                ' Light, fast housekeeping
+                Using ck As New SQLiteCommand("PRAGMA wal_checkpoint(PASSIVE);", conn)
+                    ck.ExecuteNonQuery()
+                End Using
+
+                If doVacuum Then
+                    Using vac As New SQLiteCommand("VACUUM;", conn)
+                        vac.CommandTimeout = 0
+                        vac.ExecuteNonQuery()
+                    End Using
+                End If
+            End Using
+
+            Form1.Status("FTS rebuild complete.")
+        Catch ex As Exception
+            Form1.Status("Error: " & ex.Message, ex.StackTrace)
+            MsgBox("RebuildIndex error: " & ex.Message, MsgBoxStyle.Critical, "SQLite")
+        Finally
+            If wasRunning Then
+                Try
+                    InitializeSQLite(_dbPath)
+                Catch ex As Exception
+                    Form1.Status("Error: " & ex.Message, ex.StackTrace)
+                End Try
+            End If
+            StatusProgress.ClosePopup()
+        End Try
+    End Sub
+
+
+
+    Public Sub OptimizeIndex()
+        If String.IsNullOrWhiteSpace(_dbPath) Then
+            Form1.Status("Error: No database opened for optimization.")
+            Exit Sub
+        End If
+
+        ' Re-entry guard
+        If Threading.Interlocked.Exchange(_maintenanceRunning, 1) = 1 Then
+            Form1.Status("An optimization/maintenance task is already running.")
+            Exit Sub
+        End If
+
+        ' Show popup on UI (uses thread-safe helpers inside StatusProgress)
+        StatusProgress.ShowPopup(status:="Optimizing Index... this may take a while", indeterminate:=True)
+
+        ' Kick work to a background task so the UI stays responsive
+        Task.Run(Sub()
+                     Try
+                         Using conn As New SQLite.SQLiteConnection(BuildConnStr())
+                             conn.Open()
+                             ExecPragma(conn, "busy_timeout", _busyTimeoutMs.ToString())
+
+                             Using cmd As New SQLite.SQLiteCommand("INSERT INTO files_fts(files_fts) VALUES('optimize');", conn)
+                                 cmd.CommandTimeout = 0
+                                 cmd.ExecuteNonQuery()
+                             End Using
+                         End Using
+                         Form1.Status("FTS index optimized.")
+                     Catch ex As Exception
+                         Form1.Status("Error: " & ex.Message, ex.StackTrace)
+                         MsgBox("OptimizeIndex error: " & ex.Message, MsgBoxStyle.Exclamation, "SQLite")
+                     Finally
+                         ' Close the popup and clear the guard, from any thread
+                         Try : StatusProgress.ClosePopup() : Catch : End Try
+                         Threading.Interlocked.Exchange(_maintenanceRunning, 0)
+                     End Try
+                 End Sub)
+    End Sub
+
+
 
 
 End Module

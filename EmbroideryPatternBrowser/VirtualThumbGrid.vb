@@ -1,7 +1,7 @@
 ﻿Imports System.Collections.Concurrent
 Imports System.Drawing.Drawing2D
 Imports System.Threading
-Imports System.Collections.Specialized
+Imports System.Linq
 
 ' Virtualized thumbnail grid for huge DataTables (100k–1M rows).
 ' Required columns: fullpath, filename, ext, size, metadata.
@@ -347,16 +347,7 @@ Public Class VirtualThumbGrid
         End Try
     End Function
 
-    Private Sub CopyFullPathForIndex(idx As Integer)
-        If idx < 0 OrElse idx >= _rowCount Then Return
-        Dim row = _table.Rows(idx)
-        Dim path As String = SafeStr(row("fullpath"))
-        If String.IsNullOrWhiteSpace(path) Then Return
-        Try
-            Clipboard.SetText(path)
-        Catch
-        End Try
-    End Sub
+
 
     ' === Layout ===
     Private Sub ResetLayoutMetrics()
@@ -442,17 +433,7 @@ Public Class VirtualThumbGrid
                     pe.Graphics.DrawString(name, Me.Font, Brushes.Black, textRect, sf)
                 End Using
 
-                ' selection highlight; old
-                'If idx = _selectedIndex AndAlso Focused Then
-                'Using selPen As New Pen(Color.DodgerBlue, 2.0F)
-                'pe.Graphics.DrawRectangle(selPen, New Rectangle(x - 2, y - 2, ThumbW + 4, TileH + 2))
-                'End Using
-                'ElseIf idx = _selectedIndex Then
-                'Using selPen As New Pen(Color.SteelBlue, 1.0F)
-                'pe.Graphics.DrawRectangle(selPen, New Rectangle(x - 2, y - 2, ThumbW + 4, TileH + 2))
-                'End Using
-                'End If
-                ' selection highlight (multi)
+
                 ' selection highlight (clear and obvious for all selected)
                 Dim isSelected As Boolean = (_selectedIndices IsNot Nothing AndAlso _selectedIndices.Contains(idx))
                 If isSelected Then
@@ -476,24 +457,7 @@ Public Class VirtualThumbGrid
         Next
     End Sub
 
-    'old version
-    'Private Sub InvalidateTile(index As Integer)
-    '    If index < 0 OrElse index >= _rowCount Then Return
 
-    '    Dim r As Integer = If(_cols = 0, 0, index \ _cols)
-    '    Dim c As Integer = If(_cols = 0, 0, index Mod _cols)
-
-    '    ' Virtual (content) coordinates where you *draw* the tile
-    '    Dim vx As Integer = Pad + c * TileW
-    '    Dim vy As Integer = Pad + r * TileH
-
-    '    ' Convert to client coordinates for invalidation:
-    '    Dim cx As Integer = vx - AutoScrollPosition.X
-    '    Dim cy As Integer = vy - AutoScrollPosition.Y
-
-    '    Dim rect As New Rectangle(cx - 4, cy - 4, ThumbW + 8, TileH + 8)
-    '    Invalidate(rect)
-    'End Sub
     Private Sub InvalidateTile(index As Integer)
         If index < 0 OrElse index >= _rowCount Then Return
 
@@ -514,24 +478,7 @@ Public Class VirtualThumbGrid
 
 
 
-    ' === Mouse: selection + left/right click ===
-    'Protected Overrides Sub OnMouseDown(e As MouseEventArgs)
-    'MyBase.OnMouseDown(e)
-    '   Focus()
-    '
-    'Dim idx = IndexFromPoint(e.Location)
-    'If idx <> -1 Then
-    '       SetSelectedIndex(idx, ensureVisible:=False)
 
-    'If e.Button = MouseButtons.Left Then
-    '           TryShowFullImageForIndex(idx)
-    'End If
-    'End If
-    'End Sub
-
-
-    'Mouse down: drag drop version
-    ' Mouse down: multi-select aware (Ctrl/Shift) + drag prep
     ' Mouse down: multi-select aware (Ctrl/Shift) + drag prep
     Protected Overrides Sub OnMouseDown(e As MouseEventArgs)
         MyBase.OnMouseDown(e)
@@ -598,7 +545,6 @@ Public Class VirtualThumbGrid
             _popup?.Show(Me, e.Location)
         End If
     End Sub
-
 
 
 
@@ -739,57 +685,8 @@ Public Class VirtualThumbGrid
         Return MyBase.IsInputKey(keyData)
     End Function
 
-    'old version without multi-select
-    'Protected Overrides Sub OnKeyDown(e As KeyEventArgs)
-    '    MyBase.OnKeyDown(e)
-    '    If _rowCount <= 0 Then Return
 
-    '    Dim changed As Boolean = False
-    '    Dim newIndex As Integer = If(_selectedIndex < 0, 0, _selectedIndex)
 
-    '    Dim visibleRows As Integer = Math.Max(1, (ClientSize.Height - Pad) \ TileH)
-    '    Dim pageStep As Integer = visibleRows * Math.Max(1, _cols)
-
-    '    Select Case e.KeyCode
-    '        Case Keys.Left
-    '            If _cols > 0 Then newIndex = Math.Max(0, newIndex - 1) : changed = True
-    '        Case Keys.Right
-    '            If _cols > 0 Then newIndex = Math.Min(_rowCount - 1, newIndex + 1) : changed = True
-    '        Case Keys.Up
-    '            If _cols > 0 Then newIndex = Math.Max(0, newIndex - _cols) : changed = True
-    '        Case Keys.Down
-    '            If _cols > 0 Then newIndex = Math.Min(_rowCount - 1, newIndex + _cols) : changed = True
-    '        Case Keys.PageUp
-    '            newIndex = Math.Max(0, newIndex - pageStep) : changed = True
-    '        Case Keys.PageDown
-    '            newIndex = Math.Min(_rowCount - 1, newIndex + pageStep) : changed = True
-    '        Case Keys.Home
-    '            newIndex = 0 : changed = True
-    '        Case Keys.End
-    '            newIndex = _rowCount - 1 : changed = True
-    '    End Select
-
-    '    If changed Then
-    '        SetSelectedIndex(newIndex, ensureVisible:=True)
-    '        e.Handled = True
-    '    End If
-    'End Sub
-
-    'drag drop multi select version
-    ' Keyboard nav with multi-select semantics:
-    ' - Plain arrows/Page/Home/End: single selection to new caret
-    ' - Shift + arrows/Page/Home/End: range from anchor
-    ' - Ctrl + arrows/Page/Home/End: move caret only (keeps current multi-selection)
-    ' - Ctrl+A: select all
-    ' Keyboard nav with multi-select semantics:
-    ' - Plain arrows/Page/Home/End: single selection to new caret
-    ' - Shift + arrows/Page/Home/End: range from anchor
-    ' - Ctrl + arrows/Page/Home/End: move caret only (keep multi-selection)
-    ' - Ctrl+A: select all
-    ' Keyboard nav with multi-select semantics (no Ctrl+A as requested)
-    ' - Plain arrows/Page/Home/End: single selection
-    ' - Shift + arrows/Page/Home/End: range from anchor
-    ' - Ctrl + arrows/Page/Home/End: move caret only (keep multi)
     Protected Overrides Sub OnKeyDown(e As KeyEventArgs)
         MyBase.OnKeyDown(e)
         If _rowCount <= 0 Then Return
@@ -1312,10 +1209,9 @@ Public Class VirtualThumbGrid
         Return list
     End Function
 
-    ''' <summary>
-    ''' Re-read thumbnail size from My.Settings, refresh layout, and optionally
-    ''' invalidate & warm the global thumbnail cache for the new size.
-    ''' </summary>
+
+    ' Re-read thumbnail size from My.Settings, refresh layout, and optionally
+    ' invalidate and warm the global thumbnail cache for the new size.
     Public Sub ReloadThumbSettings(Optional regenerate As Boolean = False)
         Dim old As Size = _thumbSize
         _thumbSize = New Size(ThumbW, ThumbH)

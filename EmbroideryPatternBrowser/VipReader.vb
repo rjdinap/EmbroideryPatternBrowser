@@ -1,7 +1,4 @@
-﻿Imports System
-Imports System.IO
-
-Public Class VipReader
+﻿Public Class VipReader
     Inherits EmbReader
 
     Public Overrides Sub Read()

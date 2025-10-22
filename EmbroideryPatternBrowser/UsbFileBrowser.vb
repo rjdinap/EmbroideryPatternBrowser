@@ -3,6 +3,7 @@ Imports System.IO
 Imports System.Management
 Imports System.Runtime.InteropServices
 Imports System.Threading
+Imports System.Linq
 
 
 Public Class UsbFileBrowser
@@ -152,7 +153,7 @@ Public Class UsbFileBrowser
         AddHandler _progressTimer.Tick, AddressOf ProgressTimer_Tick
     End Sub
 
-#Region "Device Notifications (RegisterDeviceNotification + WM_DEVICECHANGE)"
+
     ' WM_DEVICECHANGE codes
     Private Const WM_DEVICECHANGE As Integer = &H219
     Private Const DBT_DEVICEARRIVAL As Integer = &H8000
@@ -261,7 +262,7 @@ Public Class UsbFileBrowser
             Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
         End Try
     End Sub
-#End Region
+
 
     ' ===================== Public helpers =====================
     Public Sub NavigateToRoot()
@@ -664,10 +665,8 @@ Public Class UsbFileBrowser
         Return letters
     End Function
 
-    ''' <summary>
-    ''' Light per-drive WMI check: map logical drive -> partition -> diskdrive and verify InterfaceType = "USB"
-    ''' or PNPDeviceID contains "USBSTOR". This inspects only the single drive letter passed in.
-    ''' </summary>
+    ' Light per-drive WMI check: map logical drive -> partition -> diskdrive and verify InterfaceType = "USB"
+    ' or PNPDeviceID contains "USBSTOR". This inspects only the single drive letter passed in.
     Private Function IsUsbDrive(rootWithSep As String) As Boolean
         Try
             Dim driveId As String
@@ -724,51 +723,7 @@ Public Class UsbFileBrowser
         Return False
     End Function
 
-    ' ===================== Clipboard helpers (no text probing) =====================
-    ' Reads the clipboard ONLY when Paste is clicked (not during menu opening).
-    ' Accepts either a FileDropList or a plain text path (like Explorer "Copy as path").
-    Private Function TryGetFileFromClipboard() As String
-        Try
-            ' 1) Preferred: CF_HDROP (FileDropList)
-            If Clipboard.ContainsFileDropList() Then
-                Dim files = Clipboard.GetFileDropList()
-                If files IsNot Nothing AndAlso files.Count > 0 Then
-                    Dim f = files(0)
-                    If Not String.IsNullOrWhiteSpace(f) Then
-                        Dim p = f.Trim()
-                        If File.Exists(p) Then Return p
-                    End If
-                End If
-            End If
 
-            ' 2) Fallback: Unicode text path (Explorer "Copy as path" etc.)
-            If Clipboard.ContainsText(TextDataFormat.UnicodeText) Then
-                Dim t As String = Clipboard.GetText(TextDataFormat.UnicodeText)
-                If Not String.IsNullOrWhiteSpace(t) Then
-                    Dim p As String = t.Trim()
-
-                    ' Remove surrounding quotes if present
-                    If p.Length >= 2 AndAlso p.StartsWith("""") AndAlso p.EndsWith("""") Then
-                        p = p.Substring(1, p.Length - 2)
-                    End If
-
-                    ' Normalize whitespace
-                    p = p.Trim()
-
-                    ' Ignore trailing backslash for files (but keep UNC \\server\share\file.ext)
-                    ' (No special handling needed; File.Exists handles both.)
-
-                    ' Validate it points to a file
-                    If File.Exists(p) Then Return p
-                End If
-            End If
-
-        Catch ex As Exception
-            Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
-        End Try
-
-        Return Nothing
-    End Function
 
     ' ===================== Utilities =====================
     Private Shared Function FormatSize(len As Long) As String
@@ -873,19 +828,7 @@ Public Class UsbFileBrowser
         Loop
     End Function
 
-    Private Async Function CopyFilesToAsync(srcFiles As IEnumerable(Of String), destDir As String) As Threading.Tasks.Task
-        Await Threading.Tasks.Task.Run(
-            Sub()
-                For Each src In srcFiles
-                    Dim target = IO.Path.Combine(destDir, IO.Path.GetFileName(src))
-                    ' Match your Paste policy: set overwrite:=False (default), or True if you prefer:
-                    If IO.File.Exists(target) Then
-                        target = GenerateUniqueDestinationPath(target)
-                    End If
-                    IO.File.Copy(src, target, overwrite:=False)
-                Next
-            End Sub)
-    End Function
+
 
 
     ' Copies the given files to the currently open folder, showing progress in Panel_Right_Bottom_Top
@@ -982,24 +925,6 @@ Public Class UsbFileBrowser
     End Function
 
 
-
-    Private Sub CopyOneFileWithCancel(srcPath As String, destPath As String, token As CancellationToken)
-        Const BUF As Integer = 256 * 1024 ' 256 KB
-        Dim buffer(BUF - 1) As Byte
-
-        ' Use CreateNew so we don’t overwrite; caller already uniquifies name
-        Using sIn As New FileStream(srcPath, FileMode.Open, FileAccess.Read, FileShare.Read)
-            Using sOut As New FileStream(destPath, FileMode.CreateNew, FileAccess.Write, FileShare.None)
-                Dim read As Integer
-                Do
-                    token.ThrowIfCancellationRequested()
-                    read = sIn.Read(buffer, 0, buffer.Length)
-                    If read <= 0 Then Exit Do
-                    sOut.Write(buffer, 0, read)
-                Loop
-            End Using
-        End Using
-    End Sub
 
     Private Sub EnsureStatusLabel()
         If _statusLabel IsNot Nothing AndAlso Not _statusLabel.IsDisposed Then Return

@@ -1,7 +1,4 @@
-﻿Imports System.Collections.Generic
-Imports System.Drawing
-
-''' <summary>
+﻿''' <summary>
 ''' Brother PEC 64-color palette (hard-coded, no external file IO).
 ''' Uses the RGB integer values that worked best in your tests.
 ''' </summary>

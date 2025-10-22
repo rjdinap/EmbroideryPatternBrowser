@@ -1,6 +1,4 @@
-﻿Imports System.Drawing
-
-Public Class EmbThread
+﻿Public Class EmbThread
     Public Property ColorValue As Color
     Public Property Description As String
     Public Property ColorCode As String

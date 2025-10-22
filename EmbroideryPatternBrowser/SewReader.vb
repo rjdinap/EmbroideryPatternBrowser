@@ -1,6 +1,4 @@
-﻿Imports System
-
-Public Class SewReader
+﻿Public Class SewReader
     Inherits EmbReader
 
     ' Conservative sanity caps

@@ -1,7 +1,4 @@
-﻿Imports System
-Imports System.Collections.Generic
-
-Public Class EmbThreadJef
+﻿Public Class EmbThreadJef
     Inherits EmbThread
 
     Public Sub New(r As Integer, g As Integer, b As Integer, name As String, catalog As String)

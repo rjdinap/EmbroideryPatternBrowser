@@ -1,5 +1,4 @@
-﻿Imports System
-Imports System.Text
+﻿Imports System.Text
 
 Public Class PecReader
     Inherits EmbReader

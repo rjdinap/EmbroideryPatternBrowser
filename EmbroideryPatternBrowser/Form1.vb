@@ -2,7 +2,7 @@
 ' Install-Package Microsoft.Data.Sqlite
 ' Install-Package SQLitePCLRaw.bundle_e_sqlite3
 ' add reference to System.Management, system,io.compression, system.io
-' add nuget package: microsoft.web.webview2
+
 ' - on the installer, update the Version every time for a new release. it will ask if you want to update the product code - select yes
 '  in git, Updating the Single “latest” release Each time
 '  Rebuild your installer locally.
@@ -36,10 +36,10 @@ Public Class Form1
 
 
     ' ==== Startup ====
-    Private Sub SewingPatternOrganizer_Load(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles MyBase.Load
+    Private Sub EmbroideryPatternBrowser_Load(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles MyBase.Load
 
         StatusProgress.ShowPopup(status:="Setting up...", indeterminate:=True)
-        InitializeLogFile()   ' <-- add this line
+        InitializeLogFile()
         Me.WindowState = FormWindowState.Maximized
 
         ' Hide legacy left panel UI
@@ -70,18 +70,18 @@ Public Class Form1
                                                                        Try : Status("Error: Unhandled exception (no details).") : Catch : End Try
                                                                    End If
                                                                End Sub
+        'close the database on application exit
         AddHandler Application.ApplicationExit,
         Sub(_s, _e)
             Try : SQLiteOperations.CloseSQLite() : Catch : End Try
         End Sub
 
         ' Make the preview always fit inside the box
-
         With PictureBox_FullImage
             .Dock = DockStyle.Fill
-            .AutoSize = False         ' <- critical: never resize to image
+            .AutoSize = False
             .SizeMode = PictureBoxSizeMode.Zoom
-            .Margin = New Padding(0)  ' avoid surprise shrink
+            .Margin = New Padding(0)
             .Padding = New Padding(0)
             .BackColor = Color.White
         End With
@@ -89,8 +89,6 @@ Public Class Form1
         PictureBox_FullImage.BackColor = Color.White   ' optional, nicer look behind transparent areas
 
         Status("Welcome to EmbroideryPatternBrowser! : Version " & ver & vbCrLf)
-        'SQLiteOperations.InitializeSQLite(databaseName) ' open our default database
-        'StatusProgress.ClosePopup()
 
         FastFileScanner.ReportStatus = AddressOf Me.Status
     End Sub
@@ -123,13 +121,19 @@ Public Class Form1
                            End Sub)
 
             ' Back on UI thread: update UI
-            Status("Database ready.")
+            Status("Database ready: " & databaseName & ". Contains: " & SQLiteOperations.CountRows & " patterns.")
+
         Catch ex As Exception
             Status("Error: " & ex.Message, ex.ToString())
         Finally
             Try : StatusProgress.ClosePopup() : Catch : End Try
             Me.UseWaitCursor = False
         End Try
+
+        'set the database name on the form
+        TextBox_Database.Text = databaseName
+
+
     End Sub
 
 
@@ -183,6 +187,49 @@ Public Class Form1
     End Sub
 
 
+    'check database health
+    ' Form1.vb
+    Private Async Sub CheckDatabaseHealthToolStripMenuItem_Click(sender As Object, e As EventArgs) _
+    Handles CheckDatabaseHealthToolStripMenuItem.Click
+
+        Dim msg As String =
+"Database maintenance
+
+This allows you to check the health of your database.
+
+If searches that used to take ~1 second now take ~5 seconds, run this check. The scan may take seconds to minutes depending on DB size/fragmentation and disk speed.
+
+When it finishes, a message will appear at the bottom indicating whether optimization is recommended.
+
+Press OK to run, or Cancel to abort."
+
+        If MessageBox.Show(Me, msg, "Check database health",
+                       MessageBoxButtons.OKCancel, MessageBoxIcon.Warning) <> DialogResult.OK Then
+            Return
+        End If
+
+        StatusProgress.ShowPopup(status:="Checking database health…", indeterminate:=True)
+
+        Dim needsOptimize As Boolean = False
+        Try
+            ' Run the heavy check off the UI thread
+            needsOptimize = Await Task.Run(Function()
+                                               Return SQLMaintenance.CheckDatabaseHealth(databaseName, "files_fts")
+                                           End Function)
+        Catch ex As Exception
+            Status("Error checking database health: " & ex.Message, ex.StackTrace)
+        Finally
+            StatusProgress.ClosePopup()
+        End Try
+
+        Status("Database needs optimization: " & needsOptimize.ToString())
+        If needsOptimize Then
+            Status("Your database needs optimization. Please use Tools → Maintenance → Optimize Search Index to improve performance.",
+               textColor:=Color.Red)
+        End If
+    End Sub
+
+
 
     ' ==== Thumbnail render wrapper for grid ====
     Private Function CreateImageFromPatternWrapper(path As String, w As Integer, h As Integer) As Image
@@ -192,7 +239,7 @@ Public Class Form1
             Return pat.CreateImageFromPattern(w:=w, h:=h, margin:=20, densityShading:=False, shadingStrength:=1.0)
         Catch ex As Exception
             ' Return a tiny white placeholder and log a concise error
-            Status("Error: " & ex.Message, ex.StackTrace.ToString)
+            Status("Error " & ex.Message, ex.StackTrace.ToString)
             Dim bmp As New Bitmap(Math.Max(1, w), Math.Max(1, h))
             Using g = Graphics.FromImage(bmp)
                 g.Clear(Color.White)
@@ -203,12 +250,43 @@ Public Class Form1
 
 
     ' ==== Close DB ====
-    Private Sub closedatabase() Handles CloseDatabaseToolStripMenuItem.Click
+    Private Async Sub closedatabase() Handles CloseDatabaseToolStripMenuItem.Click
+
+        StatusProgress.ShowPopup(status:="Setting up...", indeterminate:=True)
+
+        ' Let the form finish its first paint & layout before we start work
+        Await Task.Yield()
+
+        ' Make sure the popup is up and can paint/animate
         Try
-            SQLiteOperations.CloseSQLite()
-        Catch ex As Exception
-            Status("Error closing database: " & ex.Message, ex.StackTrace.ToString)
+            StatusProgress.SetStatus("Closing database…")
+            StatusProgress.SetIndeterminate(True)
+            Me.UseWaitCursor = True
+            Me.Update() ' flush one more paint cycle
+        Catch
         End Try
+
+        Try
+            ' Run heavy DB open OFF the UI thread
+            Await Task.Run(Sub()
+                               ' Do NOT touch UI directly in here.
+                               SQLiteOperations.CloseSQLite()
+                               ' If you want progress from inside InitializeSQLite,
+                               ' expose callbacks there and call BeginInvoke(...) here.
+                           End Sub)
+
+            ' Back on UI thread: update UI
+            Status("Database closed.")
+        Catch ex As Exception
+            Status("Error closing database " & ex.Message, ex.ToString())
+        Finally
+            Try : StatusProgress.ClosePopup() : Catch : End Try
+            Me.UseWaitCursor = False
+        End Try
+
+        databaseName = ""
+        TextBox_Database.Text = databaseName
+
     End Sub
 
 
@@ -217,13 +295,13 @@ Public Class Form1
     Private Sub CreateNewDatabaseToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles CreateNewDatabaseToolStripMenuItem1.Click
 
         Try
-            Status("Create new database()")
-            Dim dirtyName As String = InputBox("Enter a name for your database")
+            Status("Create New database()")
+            Dim dirtyName As String = InputBox("Enter a name For your database")
             If String.ReferenceEquals(dirtyName, String.Empty) Then Return ' this is how we check for if the user pressed cancel
 
             Dim safeBase As String = Regex.Replace(dirtyName, "[^A-Za-z0-9\-_]", "")
             If String.IsNullOrWhiteSpace(safeBase) OrElse safeBase.Length < 3 Then
-                MessageBox.Show("The database name you entered is blank or has invalid characters. Try again with a different name.")
+                MessageBox.Show("The database name you entered Is blank Or has invalid characters. Try again With a different name.")
                 Return
             End If
 
@@ -231,21 +309,19 @@ Public Class Form1
             databaseName = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), cleanName)
 
             If File.Exists(databaseName) Then
-                MessageBox.Show("This database name: " & databaseName & " already exists. Please choose another name.")
+                MessageBox.Show("This database name " & databaseName & " already exists. Please choose another name.")
                 Return
             End If
 
             ' Create/open DB
-            Status("Creating new database: " + databaseName)
+            Status("Creating New database " + databaseName)
             SQLiteOperations.InitializeSQLite(databaseName)
 
 
         Catch ex As Exception
-            Status("Error creating new database: " & ex.Message, ex.StackTrace.ToString)
+            Status("Error creating New database " & ex.Message, ex.StackTrace.ToString)
         End Try
     End Sub
-
-
 
 
 
@@ -257,7 +333,7 @@ Public Class Form1
         If r = DialogResult.Yes Then
             If _isShuttingDown Then Exit Sub
             _isShuttingDown = True
-            StatusProgress.ShowPopup(status:="Shutting down, hang on a moment.", indeterminate:=True)
+            StatusProgress.ShowPopup(status:="Shutting down, hang On a moment.", indeterminate:=True)
             Try
                 ' Fail-safe: close SQLite (stops insert thread, releases handles)
                 SQLiteOperations.CloseSQLite()
@@ -267,11 +343,10 @@ Public Class Form1
 
             Catch ex As Exception
                 ' Log a short message on-screen and full details to disk (per your Status signature)
-                Try : Status("Error: " & ex.Message, ex.ToString()) : Catch : End Try
+                Try : Status("Error " & ex.Message, ex.ToString()) : Catch : End Try
             End Try
         End If
     End Sub
-
 
 
 
@@ -287,7 +362,7 @@ Public Class Form1
     End Function
 
 
-
+    'Set up log file on startup
     Private Sub InitializeLogFile()
         Try
 
@@ -318,7 +393,7 @@ Public Class Form1
             End If
 
             _logInitialized = True
-            Status("Initializing log file: " + _logPath)
+            Status("Initializing log file " + _logPath)
         Catch
             ' Swallow; logging should never crash the UI
             _logInitialized = False
@@ -340,13 +415,29 @@ Public Class Form1
                 If openFileDialog.ShowDialog() = DialogResult.OK Then
                     databaseName = openFileDialog.FileName
                     SQLiteOperations.InitializeSQLite(databaseName)
+                    Status("Database ready " & databaseName & ". Contains: " & SQLiteOperations.CountRows & " patterns.")
                     My.Settings.LastDatabasePath = databaseName
                     My.Settings.Save()
                 End If
             End Using
         Catch ex As Exception
-            Status("Error: " & ex.Message, ex.StackTrace.ToString)
+            Status("Error " & ex.Message, ex.StackTrace.ToString)
         End Try
+    End Sub
+
+
+    'optimize database
+    Private Sub OptimizeDatabaseToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles OptimizeDatabaseToolStripMenuItem.Click
+        Dim msg As String = "Database maintenance" & vbCrLf & vbCrLf & "This Is Not a normal user Option, And should only be performed if the program has alerted you to perform maintenance." & vbCrLf & vbCrLf
+        msg = msg + "This operation will optimize the search index, which may take anywhere from several seconds to several hours depending on database size / fragmentation level / speed of your hard drive." & vbCrLf & vbCrLf
+        msg = msg + "Press OK to perform the maintenance, or Cancel to abort."
+
+        Dim res = MessageBox.Show(Me, msg, "Optimize Search Index", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning)
+        If res <> DialogResult.OK Then Exit Sub
+
+        ' Fire the operation (the method itself shows a progress popup)
+        SQLiteOperations.OptimizeIndex()
+        Status("Index Optimization complete.")
     End Sub
 
 
@@ -357,7 +448,7 @@ Public Class Form1
         Try
             Return SQLiteOperations.UpdateMetadataRow(row, newMetadata)
         Catch ex As Exception
-            Status("Error: " & ex.Message, ex.StackTrace.ToString)
+            Status("Error " & ex.Message, ex.StackTrace.ToString)
             Return False
         End Try
     End Function
@@ -372,7 +463,7 @@ Public Class Form1
         ' Pick folder to scan
         Using dlg As New CommonOpenFileDialog()
             dlg.IsFolderPicker = True
-            dlg.Title = "Select a folder to scan for embroidery patterns"
+            dlg.Title = "Select a folder To scan For embroidery patterns"
             dlg.EnsurePathExists = True
 
             ' Start location (optional)
@@ -394,7 +485,7 @@ Public Class Form1
 
             ' Inform user about skipped system folders (mirrors FastFileScanner policy)
             Try
-                Status("Note: \Windows and \Program Files are not scanned.")
+                Status("Note \Windows And \Program Files are Not scanned.")
             Catch
             End Try
 
@@ -407,7 +498,7 @@ Public Class Form1
             Dim result = FastFileScanner.ScanAll(dirs, databaseName,
                 Sub(status As String, current As Integer, total As Integer)
                     ' (keep your popup updates as-is; they already marshal internally)
-                    StatusProgress.SetStatus(String.Format("{0} ({1} of {2})", status, current, total))
+                    StatusProgress.SetStatus(String.Format("{0} ({1} Of {2})", status, current, total))
                     If total <= 0 Then
                         StatusProgress.SetIndeterminate(True)
                     Else
@@ -419,13 +510,19 @@ Public Class Form1
 
             ' After the scan completes, post a single UI message:
             Me.BeginInvoke(Sub()
-                               Status(String.Format("Scan finished: {0}", result.ToString()))
+                               Status(String.Format("Scan finished {0}", result.ToString()))
                                StatusProgress.ClosePopup()
                            End Sub)
 
+            'we need to check for optimization after a large scan
+            If (result.FilesAdded + result.FilesDeleted > 40000) Then
+                SQLiteOperations.OptimizeIndex()
+            End If
+
+
         Catch ex As Exception
             Me.BeginInvoke(Sub()
-                               Status("Error during scan: " & ex.Message, ex.StackTrace)
+                               Status("Error during scan " & ex.Message, ex.StackTrace)
                                StatusProgress.ClosePopup()
                            End Sub)
         End Try
@@ -433,6 +530,8 @@ Public Class Form1
             t.IsBackground = True
             t.Start()
         End Using
+
+        Status("Database contains: " & SQLiteOperations.CountRows & " patterns.")
 
 
     End Sub
@@ -465,13 +564,15 @@ Public Class Form1
 
 
 
+
+
     'Help
     Private Sub ShowHelpFIleToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles ShowHelpFIleToolStripMenuItem.Click
         Try
             Dim pdfPath = Path.Combine(Application.StartupPath, "Help", HelpPdfName)
             If Not File.Exists(pdfPath) Then
-                Status("Help PDF not found: " & pdfPath)
-                MessageBox.Show("Help file not found. I’ll open the Help folder so you can drop it in.",
+                Status("Help PDF Not found " & pdfPath)
+                MessageBox.Show("Help file Not found. I'll open the Help folder so you can drop it in.",
                             "Help", MessageBoxButtons.OK, MessageBoxIcon.Information)
                 ' Open the Help folder (select if exists)
                 Dim helpFolder = Path.Combine(Application.StartupPath, "Help")
@@ -499,15 +600,19 @@ Public Class Form1
 
     ' Logs to the on-screen status AND to disk.
     ' Pass stackTrace ONLY for the disk log (kept out of the UI).
-    Public Sub Status(ByVal msg As String, Optional ByVal stackTrace As String = Nothing)
+    ' Optional textColor lets you color just this message (default = black).
+    Public Sub Status(ByVal msg As String,
+                  Optional ByVal stackTrace As String = Nothing,
+                  Optional ByVal textColor As Color = Nothing)
+
         ' --- UI log ---
         If Not Me.IsHandleCreated Then Return
 
         If Me.InvokeRequired Then
             ' hop to UI thread
-            Me.BeginInvoke(CType(Sub() SetStatusUI(msg), MethodInvoker))
+            Me.BeginInvoke(CType(Sub() SetStatusUI(msg, textColor), MethodInvoker))
         Else
-            SetStatusUI(msg)
+            SetStatusUI(msg, textColor)
         End If
 
         ' --- Disk log ---
@@ -532,9 +637,24 @@ Public Class Form1
 
 
 
-    Private Sub SetStatusUI(msg As String)
+    ' Append 1 line to the status box (optionally colored for this line only).
+    Private Sub SetStatusUI(msg As String, Optional textColor As Color = Nothing)
         Try
-            RichTextBox_Status.AppendText(vbCrLf & msg)
+            ' Move caret to end
+            RichTextBox_Status.SelectionStart = Len(RichTextBox_Status.Text)
+            RichTextBox_Status.SelectionLength = 0
+
+            ' Choose color (default = black) for this insertion only
+            Dim useColor As Color = If(textColor.IsEmpty, Color.Black, textColor)
+            RichTextBox_Status.SelectionColor = useColor
+
+            ' Prepend a newline like before, then append text
+            RichTextBox_Status.SelectedText = vbCrLf & msg
+
+            ' Reset selection color back to black for future appends
+            RichTextBox_Status.SelectionColor = Color.Black
+
+            ' Scroll to bottom
             RichTextBox_Status.SelectionStart = Len(RichTextBox_Status.Text)
             RichTextBox_Status.ScrollToCaret()
         Catch
@@ -552,7 +672,7 @@ Public Class Form1
     End Sub
 
     'when we enter the text box field, clear anything in there.
-    Private Sub TextBox_Search_KeyDown(ByVal sender As System.Object, ByVal e As EventArgs) Handles TextBox_Search.Enter
+    Private Sub TextBox_Search_Enter(ByVal sender As System.Object, ByVal e As EventArgs) Handles TextBox_Search.Enter
         TextBox_Search.Text = ""
     End Sub
 

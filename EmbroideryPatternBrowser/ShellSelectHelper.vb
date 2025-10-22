@@ -1,6 +1,4 @@
-﻿Imports System
-Imports System.Diagnostics
-Imports System.IO
+﻿Imports System.IO
 Imports System.Runtime.InteropServices
 
 Module ShellSelectHelper

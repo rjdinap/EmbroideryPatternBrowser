@@ -1,7 +1,4 @@
-﻿Imports System.Drawing
-Imports System.Windows.Forms
-
-Public Class MetadataEditorForm
+﻿Public Class MetadataEditorForm
     Inherits Form
 
     Private ReadOnly _txt As New TextBox()

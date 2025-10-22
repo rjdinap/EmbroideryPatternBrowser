@@ -113,6 +113,18 @@ Namespace My
                 Me("ThumbHeight") = value
             End Set
         End Property
+        
+        <Global.System.Configuration.UserScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("Fast")>  _
+        Public Property ThumbnailQuality() As String
+            Get
+                Return CType(Me("ThumbnailQuality"),String)
+            End Get
+            Set
+                Me("ThumbnailQuality") = value
+            End Set
+        End Property
     End Class
 End Namespace
 

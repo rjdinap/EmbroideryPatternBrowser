@@ -1,6 +1,4 @@
-﻿Imports System
-
-Public Class XxxReader
+﻿Public Class XxxReader
     Inherits EmbReader
 
     ' Conservative caps / guards

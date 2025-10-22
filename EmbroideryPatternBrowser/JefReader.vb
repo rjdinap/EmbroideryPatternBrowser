@@ -1,6 +1,4 @@
-﻿Imports System
-
-Public Class JefReader
+﻿Public Class JefReader
     Inherits EmbReader
 
     ' Conservative safety caps

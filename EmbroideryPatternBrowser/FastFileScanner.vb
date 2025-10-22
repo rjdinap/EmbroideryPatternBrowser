@@ -2,6 +2,7 @@
 Imports System.IO
 Imports System.Runtime.InteropServices
 Imports System.Threading
+Imports System.Linq
 
 Public Module FastFileScanner
 
@@ -83,13 +84,6 @@ Public Module FastFileScanner
         End Set
     End Property
     Private _reportStatus As Action(Of String)
-
-    Private Sub Status(msg As String)
-        Dim cb = _reportStatus
-        If cb IsNot Nothing Then
-            cb(msg)
-        End If
-    End Sub
 
 
     ' ---------- Public scan entry point ----------

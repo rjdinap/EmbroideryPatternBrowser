@@ -9,4 +9,3 @@ It requires SQLite with FTS5 installed. Perform these from the package manager c
 
 Add reference to System.Management, System.IO.Compression
 
-Add nuget package: microsoft.web.webview2 

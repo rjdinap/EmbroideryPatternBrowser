@@ -1,7 +1,4 @@
-﻿Imports System
-Imports System.IO
-
-Public Class HusReader
+﻿Public Class HusReader
     Inherits EmbReader
 
     Public Overrides Sub Read()

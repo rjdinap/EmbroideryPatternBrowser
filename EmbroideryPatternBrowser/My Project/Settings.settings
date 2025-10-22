@@ -17,5 +17,8 @@
     <Setting Name="ThumbHeight" Type="System.Int32" Scope="User">
       <Value Profile="(Default)">200</Value>
     </Setting>
+    <Setting Name="ThumbnailQuality" Type="System.String" Scope="User">
+      <Value Profile="(Default)">Fast</Value>
+    </Setting>
   </Settings>
 </SettingsFile>

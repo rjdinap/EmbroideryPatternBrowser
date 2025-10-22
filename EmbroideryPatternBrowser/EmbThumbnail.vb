@@ -1,9 +1,7 @@
-﻿Imports System
-Imports System.Collections.Generic
-Imports System.Drawing
-Imports System.Drawing.Drawing2D
+﻿Imports System.Drawing.Drawing2D
 Imports System.Drawing.Imaging
 Imports System.IO
+Imports System.Linq
 
 ' Lightweight thumbnail generator for EmbPattern (hardened)
 Public Module EmbThumbnail
@@ -76,30 +74,33 @@ Public Module EmbThumbnail
         End Try
     End Function
 
-    ''' <summary>
-    ''' Generate a thumbnail for an already loaded EmbPattern.
-    ''' </summary>
+
+
+    ' Generate a thumbnail for an already loaded EmbPattern.
     Public Function Generate(pattern As EmbPattern,
-                             maxWidth As Integer,
-                             maxHeight As Integer,
-                             Optional padding As Integer = 6,
-                             Optional bg As Color = Nothing,
-                             Optional drawBorder As Boolean = False,
-                             Optional showName As Boolean = False,
-                             Optional nameText As String = Nothing) As Image
+                         maxWidth As Integer,
+                         maxHeight As Integer,
+                         Optional padding As Integer = 6,
+                         Optional bg As Color = Nothing,
+                         Optional drawBorder As Boolean = False,
+                         Optional showName As Boolean = False,
+                         Optional nameText As String = Nothing) As Image
         Try
             If pattern Is Nothing Then Return Nothing
             If bg.IsEmpty Then bg = Color.White
 
-            ' cap request
+            ' Project setting gate
+            Dim useHQ As Boolean = String.Equals(My.Settings.ThumbnailQuality, "High Quality", StringComparison.OrdinalIgnoreCase)
+
+            ' --- cap request ---
             Dim wReq As Integer = Clamp(maxWidth, 1, MAX_W)
             Dim hReq As Integer = Clamp(maxHeight, 1, MAX_H)
             If CLng(wReq) * CLng(hReq) > MAX_PIXELS Then ScaleToMaxPixels(wReq, hReq, MAX_PIXELS)
 
-            ' Compute bounds
+            ' --- bounds ---
             Dim bounds As RectangleF = pattern.ComputeBounds()
             If bounds.Width <= 0 OrElse bounds.Height <= 0 Then
-                ' Blank pattern: simple swatch palette thumbnail
+                ' Fallback: palette swatch box
                 Dim w As Integer = Math.Max(64, wReq)
                 Dim h As Integer = Math.Max(64, hReq)
                 If CLng(w) * CLng(h) > MAX_PIXELS Then ScaleToMaxPixels(w, h, MAX_PIXELS)
@@ -110,6 +111,7 @@ Public Module EmbThumbnail
                     g.InterpolationMode = InterpolationMode.NearestNeighbor
                     g.CompositingQuality = CompositingQuality.HighSpeed
                     g.Clear(bg)
+
                     Dim n = Math.Max(1, pattern.ThreadList.Count)
                     Dim sw = Math.Max(1, (w - padding * 2) \ Math.Max(1, Math.Min(n, 8)))
                     Dim x = padding
@@ -119,84 +121,195 @@ Public Module EmbThumbnail
                         End Using
                         x += sw + 2
                     Next
+
                     If drawBorder Then g.DrawRectangle(Pens.Gray, 0, 0, w - 1, h - 1)
                 End Using
                 Return bmp
             End If
 
-            ' Scale to fit
+            ' --- fit scale (inside padding) ---
             Dim innerW As Double = Math.Max(1, wReq - padding * 2)
             Dim innerH As Double = Math.Max(1, hReq - padding * 2)
             Dim sx As Double = innerW / bounds.Width
             Dim sy As Double = innerH / bounds.Height
             Dim scale As Double = Math.Max(0.01, Math.Min(sx, sy))
 
-            ' Final canvas size (tight fit)
+            ' Tight final dimensions (not exceeding request)
             Dim wOut As Integer = CInt(Math.Ceiling(bounds.Width * scale)) + padding * 2
             Dim hOut As Integer = CInt(Math.Ceiling(bounds.Height * scale)) + padding * 2
             wOut = Clamp(wOut, 1, wReq)
             hOut = Clamp(hOut, 1, hReq)
             If CLng(wOut) * CLng(hOut) > MAX_PIXELS Then ScaleToMaxPixels(wOut, hOut, MAX_PIXELS)
 
-            ' Transform
+            ' Base transform at final scale
             Dim tx As Double = padding - (bounds.Left * scale)
             Dim ty As Double = padding - (bounds.Top * scale)
 
-            ' Build color indices (fast path)
+            ' Build color indices (fast)
             Dim colorIdx() As Integer = BuildFastColorIndices(pattern)
 
-            ' Render fast
-            Dim bmpOut As New Bitmap(wOut, hOut, PixelFormat.Format24bppRgb)
-            Using g As Graphics = Graphics.FromImage(bmpOut)
-                g.SmoothingMode = SmoothingMode.HighSpeed
-                g.InterpolationMode = InterpolationMode.NearestNeighbor
-                g.PixelOffsetMode = PixelOffsetMode.HighSpeed
-                g.CompositingQuality = CompositingQuality.HighSpeed
-                g.Clear(bg)
+            ' ======================== RENDER ========================
+            If Not useHQ Then
+                ' -------- FAST PATH (original behavior) --------
+                Dim bmpOut As New Bitmap(wOut, hOut, PixelFormat.Format24bppRgb)
+                Using g As Graphics = Graphics.FromImage(bmpOut)
+                    g.SmoothingMode = SmoothingMode.HighSpeed
+                    g.InterpolationMode = InterpolationMode.NearestNeighbor
+                    g.PixelOffsetMode = PixelOffsetMode.HighSpeed
+                    g.CompositingQuality = CompositingQuality.HighSpeed
+                    g.Clear(bg)
 
-                If pattern.Stitches.Count >= 2 Then
-                    Dim penW As Single = Math.Max(0.35F / CSng(Math.Max(scale, 0.0001)), 0.1F)
-                    Dim last As PointF = ToDevice(pattern.Stitches(0), scale, tx, ty)
-                    Dim lastIdx As Integer = ClampIdx(pattern, If(colorIdx.Length > 0, colorIdx(0), 0))
+                    If pattern.Stitches.Count >= 2 Then
+                        Dim penW As Single = Math.Max(0.35F / CSng(Math.Max(scale, 0.0001)), 0.1F)
+                        Dim last As PointF = ToDevice(pattern.Stitches(0), scale, tx, ty)
+                        Dim lastIdx As Integer = ClampIdx(pattern, If(colorIdx.Length > 0, colorIdx(0), 0))
 
-                    Using pen As New Pen(SafeThreadColor(pattern, lastIdx), penW)
-                        pen.StartCap = LineCap.Round
-                        pen.EndCap = LineCap.Round
+                        Using pen As New Pen(SafeThreadColor(pattern, lastIdx), penW)
+                            pen.StartCap = LineCap.Round
+                            pen.EndCap = LineCap.Round
 
-                        For i As Integer = 1 To pattern.Stitches.Count - 1
-                            Dim thisIdx As Integer = ClampIdx(pattern, If(i < colorIdx.Length, colorIdx(i), lastIdx))
-                            Dim hasBreak As Boolean = (i < pattern.BreakBefore.Count) AndAlso pattern.BreakBefore(i)
-                            Dim p As PointF = ToDevice(pattern.Stitches(i), scale, tx, ty)
+                            For i As Integer = 1 To pattern.Stitches.Count - 1
+                                Dim thisIdx As Integer = ClampIdx(pattern, If(i < colorIdx.Length, colorIdx(i), lastIdx))
+                                Dim hasBreak As Boolean = (i < pattern.BreakBefore.Count) AndAlso pattern.BreakBefore(i)
+                                Dim p As PointF = ToDevice(pattern.Stitches(i), scale, tx, ty)
 
-                            If thisIdx <> lastIdx Then
-                                pen.Color = SafeThreadColor(pattern, thisIdx)
+                                If thisIdx <> lastIdx Then
+                                    pen.Color = SafeThreadColor(pattern, thisIdx)
+                                    last = p : lastIdx = thisIdx
+                                    Continue For
+                                End If
+                                If hasBreak Then
+                                    last = p
+                                    Continue For
+                                End If
+
+                                g.DrawLine(pen, last, p)
                                 last = p
-                                lastIdx = thisIdx
-                                Continue For
-                            End If
+                            Next
+                        End Using
+                    End If
 
-                            If hasBreak Then
+                    ' Label on final
+                    If showName Then
+                        Dim nm As String = If(String.IsNullOrEmpty(nameText), pattern.GetMetadata(EmbPattern.PROP_NAME), nameText)
+                        If Not String.IsNullOrEmpty(nm) Then
+                            Using f As New Font("Segoe UI", 7.0F, FontStyle.Regular, GraphicsUnit.Point)
+                                Dim rect As New RectangleF(2, hOut - 14, wOut - 4, 12)
+                                Using br As New SolidBrush(Color.FromArgb(200, Color.White))
+                                    g.FillRectangle(br, rect)
+                                End Using
+                                Using brT As New SolidBrush(Color.Black)
+                                    g.DrawString(nm, f, brT, rect)
+                                End Using
+                            End Using
+                        End If
+                    End If
+
+                    If drawBorder Then
+                        Using p As New Pen(Color.FromArgb(180, 180, 180))
+                            g.DrawRectangle(p, 0, 0, wOut - 1, hOut - 1)
+                        End Using
+                    End If
+                End Using
+
+                Return bmpOut
+            Else
+                ' -------- HIGH-QUALITY PATH (with tiny-thumb supersampling) --------
+                ' Supersample if the smaller side is <= 201 px
+                Dim ss As Integer = 1
+                If Math.Min(wOut, hOut) <= 201 Then ss = 2
+
+                Dim rw As Integer = wOut * ss
+                Dim rh As Integer = hOut * ss
+                Dim rScale As Double = scale * ss
+                Dim rTx As Double = (tx - padding) * ss + padding
+                Dim rTy As Double = (ty - padding) * ss + padding
+                If CLng(rw) * CLng(rh) > MAX_PIXELS Then ScaleToMaxPixels(rw, rh, MAX_PIXELS)
+
+                ' Render to scratch
+                Dim scratch As New Bitmap(rw, rh, PixelFormat.Format24bppRgb)
+                Using g As Graphics = Graphics.FromImage(scratch)
+                    If ss > 1 Then
+                        g.SmoothingMode = SmoothingMode.AntiAlias
+                        g.InterpolationMode = InterpolationMode.HighQualityBicubic
+                        g.PixelOffsetMode = PixelOffsetMode.HighQuality
+                        g.CompositingQuality = CompositingQuality.HighQuality
+                    Else
+                        g.SmoothingMode = SmoothingMode.AntiAlias
+                        g.InterpolationMode = InterpolationMode.HighQualityBicubic
+                        g.PixelOffsetMode = PixelOffsetMode.HighQuality
+                        g.CompositingQuality = CompositingQuality.HighQuality
+                    End If
+
+                    g.Clear(bg)
+
+                    If pattern.Stitches.Count >= 2 Then
+                        ' Slightly higher minimum width at tiny scales so segments don’t vanish
+                        Dim penW As Single = Math.Max(0.45F / CSng(Math.Max(rScale, 0.0001)), If(ss > 1, 0.18F, 0.1F))
+
+                        Dim last As PointF = New PointF(
+                        CSng(pattern.Stitches(0).X * rScale + rTx),
+                        CSng(pattern.Stitches(0).Y * rScale + rTy))
+                        Dim lastIdx As Integer = ClampIdx(pattern, If(colorIdx.Length > 0, colorIdx(0), 0))
+
+                        Using pen As New Pen(SafeThreadColor(pattern, lastIdx), penW)
+                            pen.StartCap = LineCap.Round
+                            pen.EndCap = LineCap.Round
+
+                            For i As Integer = 1 To pattern.Stitches.Count - 1
+                                Dim thisIdx As Integer = ClampIdx(pattern, If(i < colorIdx.Length, colorIdx(i), lastIdx))
+                                Dim hasBreak As Boolean = (i < pattern.BreakBefore.Count) AndAlso pattern.BreakBefore(i)
+
+                                Dim p As PointF = New PointF(
+                                CSng(pattern.Stitches(i).X * rScale + rTx),
+                                CSng(pattern.Stitches(i).Y * rScale + rTy))
+
+                                If thisIdx <> lastIdx Then
+                                    pen.Color = SafeThreadColor(pattern, thisIdx)
+                                    last = p : lastIdx = thisIdx
+                                    Continue For
+                                End If
+                                If hasBreak Then
+                                    last = p
+                                    Continue For
+                                End If
+
+                                g.DrawLine(pen, last, p)
                                 last = p
-                                Continue For
-                            End If
+                            Next
+                        End Using
+                    End If
+                End Using
 
-                            g.DrawLine(pen, last, p)
-                            last = p
-                        Next
+                ' Downscale if supersampled, then draw label/border on final
+                Dim bmpOut As Bitmap
+                If ss > 1 Then
+                    bmpOut = New Bitmap(wOut, hOut, PixelFormat.Format24bppRgb)
+                    Using gg As Graphics = Graphics.FromImage(bmpOut)
+                        gg.SmoothingMode = SmoothingMode.HighQuality
+                        gg.InterpolationMode = InterpolationMode.HighQualityBicubic
+                        gg.PixelOffsetMode = PixelOffsetMode.HighQuality
+                        gg.CompositingQuality = CompositingQuality.HighQuality
+                        gg.Clear(bg)
+                        gg.DrawImage(scratch, New Rectangle(0, 0, wOut, hOut))
                     End Using
+                    scratch.Dispose()
+                Else
+                    bmpOut = scratch
                 End If
 
-                ' Optional name label
                 If showName Then
                     Dim nm As String = If(String.IsNullOrEmpty(nameText), pattern.GetMetadata(EmbPattern.PROP_NAME), nameText)
                     If Not String.IsNullOrEmpty(nm) Then
-                        Using f As New Font("Segoe UI", 7.0F, FontStyle.Regular, GraphicsUnit.Point)
-                            Dim rect As New RectangleF(2, hOut - 14, wOut - 4, 12)
-                            Using br As New SolidBrush(Color.FromArgb(200, Color.White))
-                                g.FillRectangle(br, rect)
-                            End Using
-                            Using brT As New SolidBrush(Color.Black)
-                                g.DrawString(nm, f, brT, rect)
+                        Using g As Graphics = Graphics.FromImage(bmpOut)
+                            Using f As New Font("Segoe UI", 7.0F, FontStyle.Regular, GraphicsUnit.Point)
+                                Dim rect As New RectangleF(2, bmpOut.Height - 14, bmpOut.Width - 4, 12)
+                                Using br As New SolidBrush(Color.FromArgb(200, Color.White))
+                                    g.FillRectangle(br, rect)
+                                End Using
+                                Using brT As New SolidBrush(Color.Black)
+                                    g.DrawString(nm, f, brT, rect)
+                                End Using
                             End Using
                         End Using
                     End If
@@ -204,18 +317,25 @@ Public Module EmbThumbnail
 
                 If drawBorder Then
                     Using p As New Pen(Color.FromArgb(180, 180, 180))
-                        g.DrawRectangle(p, 0, 0, wOut - 1, hOut - 1)
+                        Using g As Graphics = Graphics.FromImage(bmpOut)
+                            g.DrawRectangle(p, 0, 0, bmpOut.Width - 1, bmpOut.Height - 1)
+                        End Using
                     End Using
                 End If
-            End Using
 
-            Return bmpOut
+                Return bmpOut
+            End If
+            ' ====================== /RENDER ======================
 
         Catch ex As Exception
             Try : Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString) : Catch : End Try
             Return Nothing
         End Try
     End Function
+
+
+
+
 
     ' -------- cache helpers --------
     Private Function TryGetFromCache(key As String) As Image

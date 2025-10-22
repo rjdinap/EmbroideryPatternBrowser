@@ -1,6 +1,4 @@
-﻿Imports System.Windows.Forms
-
-Public Class OptionsDialog
+﻿Public Class OptionsDialog
     Inherits Form
 
     Private chkZip As CheckBox
@@ -14,6 +12,9 @@ Public Class OptionsDialog
     Private nudH As NumericUpDown
     Private btnOK As Button
     Private btnCancel As Button
+    ' === Thumbnail quality UI (created at runtime so no designer edits needed) ===
+    Private lblThumbQuality As Label
+    Private cboThumbQuality As ComboBox
 
     Public Sub New()
         Me.Text = "Options"
@@ -21,21 +22,27 @@ Public Class OptionsDialog
         Me.MaximizeBox = False
         Me.MinimizeBox = False
         Me.StartPosition = FormStartPosition.CenterParent
-        Me.ClientSize = New Drawing.Size(520, 240)
         Me.Font = New Drawing.Font("Segoe UI", 9.0F)
+
+        ' We'll compute the height dynamically after laying out controls
+        Me.ClientSize = New Drawing.Size(520, 240)
 
         ' --- Zip checkbox ---
         chkZip = New CheckBox() With {
-            .Text = "Include zip files in scans?",
-            .Left = 16, .Top = 16, .Width = 300
-        }
+        .Text = "Include zip files in scans?",
+        .Left = 16, .Top = 16, .Width = 300,
+        .Name = "chkIncludeZips"
+    }
         Controls.Add(chkZip)
 
         ' --- Thumbnails group ---
         grpThumb = New GroupBox() With {
-            .Text = "Thumbnail Image Size",
-            .Left = 12, .Top = 56, .Width = 496, .Height = 120
-        }
+        .Text = "Thumbnail Image Size",
+        .Left = 12,
+        .Top = chkZip.Bottom + 12,
+        .Width = 496,
+        .Height = 120
+    }
         Controls.Add(grpThumb)
 
         rSmall = New RadioButton() With {.Text = "Small (100 × 100)", .Left = 16, .Top = 24, .Width = 160}
@@ -54,20 +61,55 @@ Public Class OptionsDialog
 
         grpThumb.Controls.AddRange(New Control() {rSmall, rMedium, rLarge, rCustom, lblWH, nudW, nudH})
 
-        ' --- Buttons ---
-        btnOK = New Button() With {.Text = "OK", .DialogResult = DialogResult.OK, .Left = 316, .Top = 190, .Width = 90}
-        btnCancel = New Button() With {.Text = "Cancel", .DialogResult = DialogResult.Cancel, .Left = 418, .Top = 190, .Width = 90}
+        ' --- NEW: Thumbnail quality label + dropdown (UNDER the group) ---
+        Dim lblThumbQuality As New Label() With {
+        .AutoSize = True,
+        .Text = "Thumbnail Image Quality",
+        .Left = grpThumb.Left + 4,
+        .Top = grpThumb.Bottom + 12,
+        .Name = "lblThumbQuality"
+    }
+        Controls.Add(lblThumbQuality)
+
+        cboThumbQuality = New ComboBox() With {
+        .Name = "cboThumbnailQuality",
+        .DropDownStyle = ComboBoxStyle.DropDownList,
+        .Left = lblThumbQuality.Right + 12,
+        .Top = lblThumbQuality.Top - 2,
+        .Width = 180
+    }
+        cboThumbQuality.Items.AddRange(New Object() {"Fast", "High Quality"})
+        cboThumbQuality.Anchor = AnchorStyles.Top Or AnchorStyles.Left Or AnchorStyles.Right
+        Controls.Add(cboThumbQuality)
+
+        ' --- Buttons (placed under the quality row) ---
+        Dim buttonsTop As Integer = cboThumbQuality.Bottom + 16
+        btnOK = New Button() With {.Text = "OK", .DialogResult = DialogResult.OK, .Left = 316, .Top = buttonsTop, .Width = 90, .Name = "btnOK"}
+        btnCancel = New Button() With {.Text = "Cancel", .DialogResult = DialogResult.Cancel, .Left = 418, .Top = buttonsTop, .Width = 90}
 
         Controls.Add(btnOK)
         Controls.Add(btnCancel)
         Me.AcceptButton = btnOK
         Me.CancelButton = btnCancel
 
+        ' Adjust overall height so buttons are comfortably inside the client area
+        Me.ClientSize = New Drawing.Size(Me.ClientSize.Width, btnCancel.Bottom + 16)
+
+        ' Tab order tweaks
+        chkZip.TabIndex = 0
+        grpThumb.TabIndex = 1
+        lblThumbQuality.TabIndex = 2
+        cboThumbQuality.TabIndex = 3
+        btnOK.TabIndex = 4
+        btnCancel.TabIndex = 5
+
         ' Load & bind
         LoadFromSettings()
         UpdateCustomEnable()
         AddHandler btnOK.Click, AddressOf OnOk
     End Sub
+
+
 
     Private Sub LoadFromSettings()
         ' Checkbox
@@ -89,6 +131,18 @@ Public Class OptionsDialog
         If h <= nudH.Minimum OrElse h > nudH.Maximum Then h = 200
         nudW.Value = w
         nudH.Value = h
+
+        'Thumbnail quality
+        ' Normalize and select a valid value
+        Dim q As String = My.Settings.ThumbnailQuality
+        If cboThumbQuality Is Nothing Then
+            ' Defensive: nothing to do if the control isn't ready yet
+            Exit Sub
+        End If
+        If Not cboThumbQuality.Items.Contains(q) Then
+            q = "Fast"
+        End If
+        cboThumbQuality.SelectedItem = q
     End Sub
 
 
@@ -113,6 +167,10 @@ Public Class OptionsDialog
             My.Settings.ThumbHeight = CInt(nudH.Value)
         End If
         My.Settings.ThumbSizeMode = mode
+        'thumbnail quality
+        Dim selected As String = If(TryCast(cboThumbQuality.SelectedItem, String), Nothing)
+        If String.IsNullOrWhiteSpace(selected) Then selected = "Fast"
+        My.Settings.ThumbnailQuality = selected
 
         ' Persist
         My.Settings.Save()

@@ -1,7 +1,4 @@
-﻿Imports System
-Imports System.Collections.Generic
-
-' Port of org.embroideryio.embroideryio.EmbCompress (decompress only)
+﻿' Port of org.embroideryio.embroideryio.EmbCompress (decompress only)
 ' This version builds a proper *canonical* Huffman code and does bit-accurate lookups.
 ' Public API is unchanged: Expand(data As Byte(), uncompressedSize As Integer) As Byte()
 

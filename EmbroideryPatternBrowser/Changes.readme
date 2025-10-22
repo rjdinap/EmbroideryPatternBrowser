@@ -1,9 +1,14 @@
+1.0.10 - Add Tools -> Maintenance stuff - check database health and optimize database
+		- by default, optimize database on exit is turned off for speed
+		- we will auto optimze the database if more than 30k files are added/deleted in one shot.
+
 1.0.8	- fixed a bug with counting zip files during scanning
 		- fixed a bug with copying files from a zip file to the usb drive.
 		- added a proper icon to the executable and shortcut
 		- fixed startup window so that it displays without hanging 
 		- moved some menu options around for better usability
 		- added tools -> options with the ability to select thumbnail size and exclude .zip scanning.
+		- visual quality and performance improvements when displaying thumbnails
 
 1.0.7	- fix a bug with tooltip hover. 
 		- add copy status: copying file x of y
@@ -18,12 +23,11 @@ TODO:
 convert to a more standard logging framework 
 need to add a bunch of logging for diagnostic purposes
 toggle advanced logging on/off from settings
-test print .pdf instructions
 better searching
 
 update web site with new install information
 
-speed notes on older computers
+
 
 		
 

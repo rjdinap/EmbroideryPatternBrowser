@@ -1,6 +1,4 @@
-﻿Imports System
-Imports System.Text
-Imports System.IO
+﻿Imports System.Text
 
 Public Class Vp3Reader
     Inherits EmbReader

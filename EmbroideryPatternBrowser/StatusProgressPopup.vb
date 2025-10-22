@@ -1,6 +1,4 @@
 ﻿Imports System.ComponentModel
-Imports System.Runtime.CompilerServices
-Imports System.Windows.Forms
 
 
 'StatusProgress.ShowPopup(status:="Loading big file…", indeterminate:=True)

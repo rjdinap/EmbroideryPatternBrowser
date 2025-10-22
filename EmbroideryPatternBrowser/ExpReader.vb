@@ -70,7 +70,7 @@
         r.pattern.end()
     End Sub
 
-    Private Shared Function ReadFully(r As EmbReader, buffer() As Byte, offset As Integer, count As Integer) As Integer
+    Private Overloads Shared Function ReadFully(r As EmbReader, buffer() As Byte, offset As Integer, count As Integer) As Integer
         Dim total As Integer = 0
         While total < count
             Dim got As Integer = r.reader.Read(buffer, offset + total, count - total)

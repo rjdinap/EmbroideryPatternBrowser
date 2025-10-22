@@ -1,7 +1,4 @@
-﻿Imports System
-Imports System.IO
-
-Public NotInheritable Class EmbReaderFactory
+﻿Public NotInheritable Class EmbReaderFactory
     Private Sub New()
     End Sub
 

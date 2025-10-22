@@ -1,5 +1,6 @@
 ﻿Imports System.Drawing.Drawing2D
 Imports System.Drawing.Imaging
+Imports System.Linq
 
 
 ' Full, compact EmbPattern.vb (hardened)

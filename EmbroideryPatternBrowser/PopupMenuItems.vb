@@ -1,7 +1,4 @@
-﻿Imports System
-Imports System.Windows.Forms
-
-' Simple wrapper for the grid's right-click context menu.
+﻿' Simple wrapper for the grid's right-click context menu.
 Public Class PopupMenuItems
     Implements IDisposable
 

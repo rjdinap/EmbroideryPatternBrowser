@@ -1,8 +1,4 @@
-﻿Imports System
-Imports System.Collections.Generic
-Imports System.Drawing
-
-Public Class EmbThreadSew
+﻿Public Class EmbThreadSew
     Inherits EmbThread
 
     Public Sub New(red As Integer, green As Integer, blue As Integer, description As String, catalogNumber As String)
