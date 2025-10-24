@@ -15,6 +15,7 @@ Option Explicit On
 
 Imports System.IO
 Imports System.Linq
+Imports System.Reflection
 Imports System.Runtime.CompilerServices
 Imports System.Text
 Imports System.Text.RegularExpressions
@@ -80,16 +81,17 @@ Public Class Form1
         End Sub
 
         ' Make the preview always fit inside the box
-        With PictureBox_FullImage
-            .Dock = DockStyle.Fill
-            .AutoSize = False
-            .SizeMode = PictureBoxSizeMode.Zoom
-            .Margin = New Padding(0)
-            .Padding = New Padding(0)
-            .BackColor = Color.White
-        End With
-        PictureBox_FullImage.SizeMode = PictureBoxSizeMode.Zoom
-        PictureBox_FullImage.BackColor = Color.White   ' optional, nicer look behind transparent areas
+        'With PictureBox_FullImage
+        '.Dock = DockStyle.Fill
+        '.AutoSize = False
+        '.SizeMode = PictureBoxSizeMode.Zoom
+        '.Margin = New Padding(0)
+        '.Padding = New Padding(0)
+        '.BackColor = Color.White
+        'End With
+        'PictureBox_FullImage.SizeMode = PictureBoxSizeMode.Zoom
+        'PictureBox_FullImage.BackColor = Color.White   ' optional, nicer look behind transparent areas
+
 
         Status("Welcome to EmbroideryPatternBrowser! : Version " & ver & vbCrLf)
 
@@ -398,6 +400,7 @@ Press OK to run, or Cancel to abort."
 
 
 
+
     'Set up log file on startup
     Private Sub InitializeLogFile()
         Try
@@ -491,6 +494,7 @@ Press OK to run, or Cancel to abort."
 
 
 
+
     'Scan for Images
     Private Sub ScanForImagesToolStripMenuItem1_Click(sender As Object, e As EventArgs) Handles ScanForImagesToolStripMenuItem.Click
 
@@ -574,6 +578,22 @@ Press OK to run, or Cancel to abort."
 
 
 
+    Private Sub SetScroll(host As ScrollableControl, x As Integer, y As Integer)
+        Dim hs = host.HorizontalScroll
+        Dim vs = host.VerticalScroll
+        If hs.Maximum > 0 Then
+            x = Math.Max(hs.Minimum, Math.Min(hs.Maximum - hs.LargeChange + 1, x))
+            hs.Value = x
+        End If
+        If vs.Maximum > 0 Then
+            y = Math.Max(vs.Minimum, Math.Min(vs.Maximum - vs.LargeChange + 1, y))
+            vs.Value = y
+        End If
+        host.PerformLayout()
+    End Sub
+
+
+
     ' Tools -> Options
     Private Sub SettingsToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles SettingsToolStripMenuItem.Click
         ' capture old size to detect change
@@ -631,6 +651,7 @@ Press OK to run, or Cancel to abort."
                         "Help", MessageBoxButtons.OK, MessageBoxIcon.Error)
         End Try
     End Sub
+
 
 
 

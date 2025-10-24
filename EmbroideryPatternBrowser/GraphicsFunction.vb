@@ -2,16 +2,12 @@
 Imports System.Drawing.Imaging
 
 
-'' Rotate 45 degrees:
-'Dim rotated = GraphicsFunctions.RotateImage(img, 45.0F, Color.White)
-'PictureBox1.Image = rotated
 
-
-Public Module GraphicsFunctions
+Public Class GraphicsFunctions
     ''' <summary>
     ''' Rotates an image by angleDegrees (clockwise), returns a new image with a canvas sized to avoid clipping.
     ''' </summary>
-    Public Function RotateImage(src As Image, angleDegrees As Single, Optional background As Color = Nothing) As Image
+    Public Shared Function RotateImage(src As Image, angleDegrees As Single, Optional background As Color = Nothing) As Image
         If src Is Nothing Then Throw New ArgumentNullException(NameOf(src))
         If background = Nothing Then background = Color.Transparent
 
@@ -40,5 +36,53 @@ Public Module GraphicsFunctions
     End Function
 
 
+    ''' Resize to an explicit W×H (preserving aspect is up to caller).
+    Public Function ResizeTo(src As Image,
+                             targetWidth As Integer,
+                             targetHeight As Integer,
+                             Optional highQuality As Boolean = True) As Bitmap
+        If src Is Nothing Then Throw New ArgumentNullException(NameOf(src))
+        Dim w As Integer = Math.Max(1, targetWidth)
+        Dim h As Integer = Math.Max(1, targetHeight)
 
-End Module
+        Dim bmp As New Bitmap(w, h, PixelFormat.Format32bppPArgb)
+        Using g As Graphics = Graphics.FromImage(bmp)
+            g.CompositingMode = CompositingMode.SourceOver
+            g.CompositingQuality = If(highQuality, CompositingQuality.HighQuality, CompositingQuality.HighSpeed)
+            g.InterpolationMode = If(highQuality, InterpolationMode.HighQualityBicubic, InterpolationMode.NearestNeighbor)
+            g.SmoothingMode = If(highQuality, SmoothingMode.AntiAlias, SmoothingMode.None)
+            g.PixelOffsetMode = If(highQuality, PixelOffsetMode.HighQuality, PixelOffsetMode.None)
+            g.DrawImage(src, New Rectangle(0, 0, w, h))
+        End Using
+        Return bmp
+    End Function
+
+
+
+    ''' Resize by a scale factor. Example: 1.25 = +25%, 0.5 = 50%.
+    Public Function ResizeBy(src As Image,
+                             scale As Single,
+                             Optional highQuality As Boolean = True) As Bitmap
+        If src Is Nothing Then Throw New ArgumentNullException(NameOf(src))
+        Dim s As Single = Math.Max(0.01F, scale)
+        Dim w As Integer = Math.Max(1, CInt(Math.Round(src.Width * s)))
+        Dim h As Integer = Math.Max(1, CInt(Math.Round(src.Height * s)))
+        Return ResizeTo(src, w, h, highQuality)
+    End Function
+
+
+
+    ' Per-control zoom state (so switching images/controls won’t share stale values)
+    Private Class ZoomState
+        Public Zoom As Double = 1.0
+        Public MinZoom As Double = 0.05
+        Public MaxZoom As Double = 10.0
+    End Class
+
+
+
+
+End Class
+
+
+

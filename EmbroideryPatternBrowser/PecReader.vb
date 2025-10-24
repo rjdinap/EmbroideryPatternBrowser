@@ -174,7 +174,6 @@ Public Class PecReader
         ' - Emit pattern.move for anchors/moves, pattern.stitch for normal stitches
         ' - No rotate/flip here; renderer will just translate to (0,0) using bounds elsewhere
 
-        Const LOG_FIRST As Integer = 80
 
         Dim iter As Integer = 0
         Dim lastPos As Long = If(reader Is Nothing OrElse reader.BaseStream Is Nothing, 0L, reader.BaseStream.Position)

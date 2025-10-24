@@ -19,7 +19,7 @@ Public Class VirtualThumbGrid
 
     ' Optional: full image hookup (left-click)
     Private _fullImageFactory As Func(Of String, Integer, Integer, Image) ' CreateImageFromPattern wrapper
-    Private _fullImageTarget As PictureBox
+    Private _fullImageTarget As Control
 
     ' Optional: save metadata delegate (DB persistence)
     Private _saveMetadata As Func(Of DataRow, String, Boolean)
@@ -92,9 +92,9 @@ Public Class VirtualThumbGrid
 
     ' Bind + optional delegates
     Public Overloads Sub Bind(table As DataTable,
-                              Optional fullImageFactory As Func(Of String, Integer, Integer, Image) = Nothing,
-                              Optional fullImageTarget As PictureBox = Nothing,
-                              Optional saveMetadata As Func(Of DataRow, String, Boolean) = Nothing)
+                          Optional fullImageFactory As Func(Of String, Integer, Integer, Image) = Nothing,
+                          Optional fullImageTarget As Control = Nothing,
+                          Optional saveMetadata As Func(Of DataRow, String, Boolean) = Nothing)
         If table Is Nothing Then Throw New ArgumentNullException(NameOf(table))
         _table = table
         _rowCount = _table.Rows.Count
@@ -127,13 +127,13 @@ Public Class VirtualThumbGrid
         Invalidate()
 
         ' Re-render preview on PictureBox resize so it always fits
-        If _fullImageTarget IsNot Nothing Then
-            AddHandler _fullImageTarget.Resize, Sub(sender, args)
-                                                    If _selectedIndex >= 0 Then
-                                                        TryShowFullImageForIndex(_selectedIndex)
-                                                    End If
-                                                End Sub
-        End If
+        'If _fullImageTarget IsNot Nothing Then
+        'AddHandler _fullImageTarget.Resize, Sub(sender, args)
+        'If _selectedIndex >= 0 Then
+        'TryShowFullImageForIndex(_selectedIndex)
+        'End If
+        'End Sub
+        'End If
     End Sub
 
 
@@ -583,53 +583,61 @@ Public Class VirtualThumbGrid
     Private Sub TryShowFullImageForIndex(idx As Integer)
         If _fullImageFactory Is Nothing OrElse _fullImageTarget Is Nothing Then Return
         If idx < 0 OrElse idx >= _rowCount Then Return
+
         Dim row = _table.Rows(idx)
         Dim path As String = SafeStr(row("fullpath"))
         If String.IsNullOrEmpty(path) Then Return
 
-        ' Snapshot target size now (may be 0 during layout; guard)
-        Dim w As Integer = Math.Max(1, _fullImageTarget.ClientSize.Width)
-        Dim h As Integer = Math.Max(1, _fullImageTarget.ClientSize.Height)
+        ' Snapshot the current target client size
+        Dim cs As Size = If(_fullImageTarget IsNot Nothing, _fullImageTarget.ClientSize, Size.Empty)
+        Dim w As Integer = Math.Max(1, cs.Width)
+        Dim h As Integer = Math.Max(1, cs.Height)
 
         Task.Run(Function()
                      Dim img As Image = Nothing
                      Try
-                         img = _fullImageFactory(path, w, h) ' renderer already tries to fit
+                         img = _fullImageFactory(path, w, h)
                      Catch
                      End Try
                      Return img
                  End Function).
-             ContinueWith(Sub(t)
-                              Dim rawImg = t.Result
-                              If rawImg Is Nothing Then Return
-                              If Not _fullImageTarget.IsHandleCreated Then
-                                  Try : rawImg.Dispose() : Catch : End Try
-                                  Return
-                              End If
+        ContinueWith(Sub(t)
+                         Dim rawImg = t.Result
+                         If rawImg Is Nothing Then Return
+                         If _fullImageTarget Is Nothing OrElse _fullImageTarget.IsDisposed Then
+                             Try : rawImg.Dispose() : Catch : End Try
+                             Return
+                         End If
 
-                              ' Compute current size on UI thread and hard-fit
-                              Dim targetW As Integer = Math.Max(1, _fullImageTarget.ClientSize.Width)
-                              Dim targetH As Integer = Math.Max(1, _fullImageTarget.ClientSize.Height)
-                              Dim fitted As Image = Nothing
-                              Try
-                                  fitted = FitBitmap(rawImg, targetW, targetH)
-                              Catch
-                                  fitted = rawImg
-                              End Try
+                         _fullImageTarget.BeginInvoke(DirectCast(Sub()
+                                                                     ' Read current image (if any) and replace it using reflection
+                                                                     Dim oldImg As Image = Nothing
+                                                                     Dim p = _fullImageTarget.GetType().GetProperty("Image")
+                                                                     If p IsNot Nothing AndAlso p.CanWrite Then
+                                                                         Try
+                                                                             oldImg = TryCast(p.GetValue(_fullImageTarget, Nothing), Image)
+                                                                         Catch
+                                                                         End Try
+                                                                         Try
+                                                                             p.SetValue(_fullImageTarget, rawImg, Nothing)
+                                                                         Catch
+                                                                             ' if the control has no Image setter, just drop it
+                                                                         End Try
+                                                                     End If
 
-                              _fullImageTarget.BeginInvoke(DirectCast(Sub()
-                                                                          Dim old = _fullImageTarget.Image
-                                                                          _fullImageTarget.Image = fitted
-                                                                          If (Not Object.ReferenceEquals(old, fitted)) AndAlso old IsNot Nothing Then
-                                                                              Try : old.Dispose() : Catch : End Try
-                                                                          End If
-                                                                          If Not Object.ReferenceEquals(fitted, rawImg) AndAlso rawImg IsNot Nothing Then
-                                                                              Try : rawImg.Dispose() : Catch : End Try
-                                                                          End If
-                                                                      End Sub, Action))
+                                                                     ' If this is a ZoomPictureBox, call FitToWindow to start fitted
+                                                                     Dim m = _fullImageTarget.GetType().GetMethod("FitToWindow", Type.EmptyTypes)
+                                                                     If m IsNot Nothing Then
+                                                                         Try : m.Invoke(_fullImageTarget, Nothing) : Catch : End Try
+                                                                     End If
 
-                          End Sub, TaskScheduler.FromCurrentSynchronizationContext())
+                                                                     If oldImg IsNot Nothing AndAlso Not Object.ReferenceEquals(oldImg, rawImg) Then
+                                                                         Try : oldImg.Dispose() : Catch : End Try
+                                                                     End If
+                                                                 End Sub, Action))
+                     End Sub, TaskScheduler.FromCurrentSynchronizationContext())
     End Sub
+
 
     ' === Popup actions ===
     Private Sub OpenDirectoryForIndex(idx As Integer)

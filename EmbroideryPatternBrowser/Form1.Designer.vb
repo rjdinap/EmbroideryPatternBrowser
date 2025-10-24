@@ -53,12 +53,12 @@ Partial Class Form1
         Me.Panel_Main_Fill = New System.Windows.Forms.Panel()
         Me.Panel_Right = New System.Windows.Forms.Panel()
         Me.Panel_Right_Fill = New System.Windows.Forms.Panel()
-        Me.PictureBox_FullImage = New System.Windows.Forms.PictureBox()
         Me.Panel_Right_Top = New System.Windows.Forms.Panel()
         Me.Button_Rotate = New System.Windows.Forms.Button()
         Me.Panel_Right_Bottom = New System.Windows.Forms.Panel()
         Me.Panel_Right_Bottom_Fill = New System.Windows.Forms.Panel()
         Me.Panel_Right_Bottom_Top = New System.Windows.Forms.Panel()
+        Me.PictureBox_FullImage = New EmbroideryPatternBrowser.ZoomPictureBox()
         Me.Panel_Main_Top.SuspendLayout()
         Me.MenuStrip1.SuspendLayout()
         Me.Panel_Main_Bottom.SuspendLayout()
@@ -66,7 +66,6 @@ Partial Class Form1
         Me.Panel_Main_Botton_Top.SuspendLayout()
         Me.Panel_Right.SuspendLayout()
         Me.Panel_Right_Fill.SuspendLayout()
-        CType(Me.PictureBox_FullImage, System.ComponentModel.ISupportInitialize).BeginInit()
         Me.Panel_Right_Top.SuspendLayout()
         Me.Panel_Right_Bottom.SuspendLayout()
         Me.SuspendLayout()
@@ -327,23 +326,13 @@ Partial Class Form1
         '
         'Panel_Right_Fill
         '
+        Me.Panel_Right_Fill.AutoScroll = True
         Me.Panel_Right_Fill.Controls.Add(Me.PictureBox_FullImage)
         Me.Panel_Right_Fill.Dock = System.Windows.Forms.DockStyle.Fill
         Me.Panel_Right_Fill.Location = New System.Drawing.Point(0, 39)
         Me.Panel_Right_Fill.Name = "Panel_Right_Fill"
         Me.Panel_Right_Fill.Size = New System.Drawing.Size(399, 280)
         Me.Panel_Right_Fill.TabIndex = 3
-        '
-        'PictureBox_FullImage
-        '
-        Me.PictureBox_FullImage.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
-        Me.PictureBox_FullImage.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.PictureBox_FullImage.Location = New System.Drawing.Point(0, 0)
-        Me.PictureBox_FullImage.Name = "PictureBox_FullImage"
-        Me.PictureBox_FullImage.Size = New System.Drawing.Size(399, 280)
-        Me.PictureBox_FullImage.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom
-        Me.PictureBox_FullImage.TabIndex = 0
-        Me.PictureBox_FullImage.TabStop = False
         '
         'Panel_Right_Top
         '
@@ -393,6 +382,17 @@ Partial Class Form1
         Me.Panel_Right_Bottom_Top.Size = New System.Drawing.Size(399, 34)
         Me.Panel_Right_Bottom_Top.TabIndex = 0
         '
+        'PictureBox_FullImage
+        '
+        Me.PictureBox_FullImage.BackColor = System.Drawing.Color.White
+        Me.PictureBox_FullImage.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.PictureBox_FullImage.Image = Nothing
+        Me.PictureBox_FullImage.Location = New System.Drawing.Point(0, 0)
+        Me.PictureBox_FullImage.Name = "PictureBox_FullImage"
+        Me.PictureBox_FullImage.Size = New System.Drawing.Size(399, 280)
+        Me.PictureBox_FullImage.TabIndex = 0
+        Me.PictureBox_FullImage.Zoom = 1.0R
+        '
         'Form1
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
@@ -416,7 +416,6 @@ Partial Class Form1
         Me.Panel_Main_Botton_Top.PerformLayout()
         Me.Panel_Right.ResumeLayout(False)
         Me.Panel_Right_Fill.ResumeLayout(False)
-        CType(Me.PictureBox_FullImage, System.ComponentModel.ISupportInitialize).EndInit()
         Me.Panel_Right_Top.ResumeLayout(False)
         Me.Panel_Right_Bottom.ResumeLayout(False)
         Me.ResumeLayout(False)
@@ -428,7 +427,6 @@ Partial Class Form1
     Friend WithEvents Panel_Main_Bottom As System.Windows.Forms.Panel
     Friend WithEvents Panel_Main_Left As System.Windows.Forms.Panel
     Friend WithEvents Panel_Main_Fill As System.Windows.Forms.Panel
-    Friend WithEvents PictureBox_FullImage As System.Windows.Forms.PictureBox
     Friend WithEvents ToolsToolStripMenuItem As ToolStripMenuItem
     Friend WithEvents Button_Search As Button
     Friend WithEvents TextBox_Search As TextBox
@@ -459,4 +457,5 @@ Partial Class Form1
     Friend WithEvents MaintenanceToolStripMenuItem As ToolStripMenuItem
     Friend WithEvents OptimizeDatabaseToolStripMenuItem As ToolStripMenuItem
     Friend WithEvents CheckDatabaseHealthToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents PictureBox_FullImage As ZoomPictureBox
 End Class

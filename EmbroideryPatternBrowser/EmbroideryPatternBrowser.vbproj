@@ -192,6 +192,9 @@
     <Compile Include="Vp3Reader.vb" />
     <Compile Include="XxxReader.vb" />
     <Compile Include="ZipProcessing.vb" />
+    <Compile Include="ZoomPictureBox.vb">
+      <SubType>Component</SubType>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="AboutForm.resx">
