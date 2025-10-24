@@ -1,3 +1,21 @@
+TODO: 
+convert to a more standard logging framework 
+need to add a bunch of logging for diagnostic purposes
+toggle advanced logging on/off from settings
+better searching
+
+- startup database open is too slow
+lock down the ui during optimize / rebuild to prevent stupid things like closing the database
+prevent (or discourage) closing the app during a database rebuild or optimize
+
+
+
+update web site with new install information
+
+
+1.0.11 - fix a bug with cancelling scan for images
+
+
 1.0.10 - Add Tools -> Maintenance stuff - check database health and optimize database
 		- by default, optimize database on exit is turned off for speed
 		- we will auto optimze the database if more than 30k files are added/deleted in one shot.
@@ -19,13 +37,7 @@
 
 
 
-TODO: 
-convert to a more standard logging framework 
-need to add a bunch of logging for diagnostic purposes
-toggle advanced logging on/off from settings
-better searching
 
-update web site with new install information
 
 
 

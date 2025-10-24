@@ -14,6 +14,9 @@ Option Strict On
 Option Explicit On
 
 Imports System.IO
+Imports System.Linq
+Imports System.Runtime.CompilerServices
+Imports System.Text
 Imports System.Text.RegularExpressions
 Imports System.Threading
 Imports Microsoft.WindowsAPICodePack.Dialogs
@@ -325,6 +328,7 @@ Press OK to run, or Cancel to abort."
 
 
 
+
     ' In Form1: ensure we always close the DB when the user clicks the X
     Private Sub Form1_FormClosing(sender As Object, e As FormClosingEventArgs) Handles Me.FormClosing
 
@@ -360,6 +364,38 @@ Press OK to run, or Cancel to abort."
         End If
         Return chosen
     End Function
+
+
+
+    Public Function HexDump(bytes As Byte(), Optional width As Integer = 16) As String
+        Dim sb As New StringBuilder()
+        For i = 0 To bytes.Length - 1 Step width
+            Dim slice = bytes.Skip(i).Take(Math.Min(width, bytes.Length - i)).ToArray()
+            sb.Append(i.ToString("X6")).Append(":  ")
+            ' hex
+            For j = 0 To width - 1
+                If j < slice.Length Then
+                    sb.Append(slice(j).ToString("X2")).Append(" ")
+                Else
+                    sb.Append("   ")
+                End If
+            Next
+            sb.Append(" | ")
+            ' ascii
+            For j = 0 To slice.Length - 1
+                Dim ch = AscW(ChrW(slice(j)))
+                If ch >= 32 AndAlso ch < 127 Then
+                    sb.Append(ChrW(ch))
+                Else
+                    sb.Append(".")
+                End If
+            Next
+            sb.AppendLine()
+        Next
+        Return sb.ToString()
+    End Function
+
+
 
 
     'Set up log file on startup
@@ -472,8 +508,8 @@ Press OK to run, or Cancel to abort."
             ' Pin special folders at the top of the nav pane
             'dlg.AddPlace(KnownFolders.Desktop.Path, FileDialogAddPlaceLocation.Top)
             'dlg.AddPlace(KnownFolders.Documents.Path, FileDialogAddPlaceLocation.Top)
+
             If dlg.ShowDialog() <> CommonFileDialogResult.Ok Then
-                Dim chosen As String = dlg.FileName
                 Return
             End If
             folderPath = dlg.FileName
@@ -676,11 +712,54 @@ Press OK to run, or Cancel to abort."
         TextBox_Search.Text = ""
     End Sub
 
+    ' 1b) Public, static-like entry point for background threads
+
+    Public Sub StatusFromAnyThread(text As String)
+        Dim f As Form1 =
+            Application.OpenForms.OfType(Of Form1)().FirstOrDefault()
+
+        If f Is Nothing OrElse f.IsDisposed Then Return
+        f.InvokeIfRequired(Sub() f.Status(text))   ' calls your existing instance Status()
+    End Sub
+
+
 
 End Class
 
 
 
+' 1a) Tiny helper to marshal to UI
+Module ControlInvokeExtensions
+    <Extension()>
+    Public Sub InvokeIfRequired(ctrl As Control, action As Action)
+        If ctrl Is Nothing OrElse ctrl.IsDisposed Then Return
+
+        If ctrl.IsHandleCreated Then
+            If ctrl.InvokeRequired Then
+                Try
+                    ctrl.BeginInvoke(action)
+                Catch
+                    ' Control is closing—ignore.
+                End Try
+            Else
+                action()
+            End If
+        Else
+            ' Wait until the handle is created, then run once.
+            Dim h As EventHandler = Nothing
+            h = Sub(sender As Object, e As EventArgs)
+                    RemoveHandler ctrl.HandleCreated, h
+                    If ctrl.IsDisposed Then Return
+                    Try
+                        ctrl.BeginInvoke(action)
+                    Catch
+                        ' Control is closing—ignore.
+                    End Try
+                End Sub
+            AddHandler ctrl.HandleCreated, h
+        End If
+    End Sub
+End Module
 
 
 

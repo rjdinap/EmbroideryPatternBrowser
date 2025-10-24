@@ -11,7 +11,7 @@
 
     Private Sub ReadPESHeader()
         Dim signature As String = ReadString(8)
-
+        'Form1.StatusFromAnyThread("PES Signature: " & signature)
         Select Case signature
             Case "#PES0100" : pattern.SetMetadata(PROP_VERSION, "10") : ReadPESHeaderV10()
             Case "#PES0090" : pattern.SetMetadata(PROP_VERSION, "9") : ReadPESHeaderV9()

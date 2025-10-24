@@ -295,19 +295,49 @@ Public Class EmbPattern
     End Function
 
     ' Use decoded indices when available; otherwise synthesize contiguous blocks by color count.
+    'Private Function BuildRenderColorIndices() As Integer()
+    '    If Stitches.Count = 0 Then Return New Integer() {}
+
+    '    If StitchThreadIndices.Count = Stitches.Count Then
+    '        Dim distinctCount = StitchThreadIndices.Distinct().Count()
+    '        If distinctCount > 1 OrElse ThreadList.Count <= 1 Then
+    '            Return StitchThreadIndices.ToArray()
+    '        End If
+    '        ' fall through to synthetic if only one index but multiple threads
+    '    End If
+
+    '    Dim result(Stitches.Count - 1) As Integer
+    '    If ThreadList.Count <= 1 Then Return result
+
+    '    Dim colors As Integer = ThreadList.Count
+    '    Dim baseBlock As Integer = Math.Max(1, Stitches.Count \ colors)
+    '    For colorIdx As Integer = 0 To colors - 1
+    '        Dim start As Integer = colorIdx * baseBlock
+    '        Dim [end] As Integer = If(colorIdx = colors - 1, Stitches.Count, Math.Min(Stitches.Count, start + baseBlock))
+    '        For i As Integer = start To [end] - 1
+    '            result(i) = colorIdx
+    '        Next
+    '    Next
+    '    Return result
+    'End Function
+
+    ' Use decoded indices when available; otherwise synthesize contiguous blocks by color count.
     Private Function BuildRenderColorIndices() As Integer()
         If Stitches.Count = 0 Then Return New Integer() {}
 
-        If StitchThreadIndices.Count = Stitches.Count Then
-            Dim distinctCount = StitchThreadIndices.Distinct().Count()
-            If distinctCount > 1 OrElse ThreadList.Count <= 1 Then
-                Return StitchThreadIndices.ToArray()
-            End If
-            ' fall through to synthetic if only one index but multiple threads
+        ' --- Primary path: honor decoded indices exactly when present ---
+        ' This matches the thumbnail path and avoids inventing colors for single-color designs.
+        If StitchThreadIndices IsNot Nothing AndAlso StitchThreadIndices.Count = Stitches.Count Then
+            Return StitchThreadIndices.ToArray()
         End If
 
+        ' --- Fallback: no/partial indices → synthesize a simple block mapping by thread count ---
         Dim result(Stitches.Count - 1) As Integer
-        If ThreadList.Count <= 1 Then Return result
+        If ThreadList Is Nothing OrElse ThreadList.Count <= 1 Then
+            ' 0 or 1 thread → everything at index 0 (already result default)
+            'Try : Form1.StatusFromAnyThread("[Render] Using synthetic color indices (<=1 thread or missing indices).") : Catch : End Try
+            Return result
+        End If
 
         Dim colors As Integer = ThreadList.Count
         Dim baseBlock As Integer = Math.Max(1, Stitches.Count \ colors)
@@ -318,8 +348,11 @@ Public Class EmbPattern
                 result(i) = colorIdx
             Next
         Next
+
+        'Try : Form1.StatusFromAnyThread($"[Render] Using synthetic color indices (colors={colors}, stitches={Stitches.Count}).") : Catch : End Try
         Return result
     End Function
+
 
     ' ---------- Density map (optional shading) ----------
     Private Sub BuildDensityMap(width As Integer, height As Integer,

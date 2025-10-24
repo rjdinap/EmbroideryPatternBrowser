@@ -41,7 +41,7 @@ Module SQLiteOperations
                                 Optional aggressivePragmas As Boolean = True,
                                 Optional batchSize As Integer = 20000,
                                 Optional optimizeOnStop As Boolean = False)
-
+        Dim sw As New Stopwatch() : sw.Start()
         If String.IsNullOrWhiteSpace(dbFilePath) Then Throw New ArgumentException("dbFilePath is required.")
         If IsSystemishPath(dbFilePath) Then
             Throw New InvalidOperationException("Please choose a database path under a non-system folder (e.g., Documents).")
@@ -70,8 +70,11 @@ Module SQLiteOperations
         End If
 
         Using conn As SQLiteConnection = OpenConnection(dbFilePath, enableWal, aggressivePragmas, created)
+            Form1.Status($"Open: conn.Open in {sw.ElapsedMilliseconds} ms")
             EnsureFts5Available(conn)
+            Form1.Status($"Open: FTS5 probe in {sw.ElapsedMilliseconds} ms total")
             CreateSchema(conn, created)
+            Form1.Status($"Open: schema check in {sw.ElapsedMilliseconds} ms total")
         End Using
 
         _stopRequested = False

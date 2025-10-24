@@ -1,4 +1,5 @@
-﻿Imports System.Text
+﻿
+Imports System.Text
 
 Public Class PecReader
     Inherits EmbReader
@@ -43,12 +44,12 @@ Public Class PecReader
         End Try
     End Sub
 
-    ' ---------------------- Core PEC payload decoder ----------------------
-    ' This assumes the stream is already positioned at the PEC payload start
-    ' (i.e., right after "#PEC0001" if that marker exists in the file).
+
+
+    ' ---------------------- Core PEC payload decoder (alignment + 463-color table) ----------------------
     Private Sub ReadPecCore()
         ' --- Label / basic header ---
-        Skip(3)
+        Skip(3) ' "LA:"
         Dim label As String = SafeTrim(ReadString(16))
         If label.Length > 0 Then pattern.SetMetadata(EmbPattern.PROP_NAME, label)
         Skip(&HF)
@@ -58,51 +59,37 @@ Public Class PecReader
         Dim iconH As Integer = ReadInt8()
         Skip(&HC)
 
-        ' Color section (bounded)
+        ' Color-change count byte (not used to size the table)
         Dim colorChanges As Integer = ReadInt8()
         If colorChanges = Integer.MinValue Then
             pattern.end() : Return
         End If
-        colorChanges = Clamp(colorChanges, 0, MAX_COLORS)
 
-        Dim colorBytes As Byte()
-        If colorChanges = 0 Then
-            colorBytes = Array.Empty(Of Byte)()
-        Else
-            colorBytes = New Byte(colorChanges) {} ' +1 as in original logic
-            Dim got As Integer = ReadFully(colorBytes)
-            If got <> colorBytes.Length Then
-                Try : Form1.Status("Error: PEC palette truncated.") : Catch : End Try
-                pattern.end() : Return
-            End If
+        ' ---- PEC color table: fixed 463 bytes ----
+        Dim colorListLen As Integer = 463
+        Dim colorBytes(colorListLen - 1) As Byte
+        Dim gotList As Integer = ReadFully(colorBytes)
+        If gotList <> colorBytes.Length Then
+            'Try : Form1.StatusFromAnyThread($"Error: PEC color list truncated. got={gotList} need={colorBytes.Length}") : Catch : End Try
+            pattern.end() : Return
         End If
+
+        ' Apply PEC colors (this is what made the thumbnails correct)
         MapPecColors(colorBytes)
+        'Try : Form1.StatusFromAnyThread($"[PEC] palette entries loaded = {pattern.ThreadList.Count}") : Catch : End Try
 
-        ' Seek to stitches:
-        ' Original: Skip(&H1D0 - colorChanges) then stitchBlockEnd = ReadInt24LE() - 5 + Tell()
-        Dim skipCount As Integer = &H1D0 - colorChanges
-        If skipCount < 0 Then skipCount = 0
-        Skip(skipCount)
+        ' Two zeros, then 4 bytes, then FF F0, then 12 bytes
+        Dim z1 As Integer = ReadInt8()
+        Dim z2 As Integer = ReadInt8()
+        'Try : Form1.StatusFromAnyThread($"[PEC] two zeros after color list = {z1:X2} {z2:X2}") : Catch : End Try
+        Skip(4)
+        Dim m1 As Integer = ReadInt8()
+        Dim m2 As Integer = ReadInt8()
+        'ry : Form1.StatusFromAnyThread($"[PEC] pre-stitch marker bytes = {m1:X2} {m2:X2}") : Catch : End Try
+        Skip(&HC) ' 12 bytes
 
-        ' The 24-bit length is relative; ensure non-negative and within file
-        Dim relLen As Integer = ReadInt24LE()
-        If relLen < 5 Then relLen = 5
-        Dim curPos As Long = If(reader Is Nothing OrElse reader.BaseStream Is Nothing, 0L, reader.BaseStream.Position)
-        Dim fileLen As Long = If(reader Is Nothing OrElse reader.BaseStream Is Nothing, 0L, reader.BaseStream.Length)
-        Dim stitchBlockEnd As Long = curPos + (relLen - 5)
-        If stitchBlockEnd < 0 Then stitchBlockEnd = 0
-        If stitchBlockEnd > fileLen Then stitchBlockEnd = fileLen
-
-        ' 0x31, 0xFF, 0xF0, then 4 shorts => 11 bytes (guarded)
-        Skip(&HB)
-
-        ' --- Stitches (safe loop) ---
+        ' --- Stitches ---
         ReadPecStitchesSafe()
-
-        ' Seek to computed end (if valid)
-        If stitchBlockEnd >= 0 AndAlso reader IsNot Nothing AndAlso reader.BaseStream IsNot Nothing AndAlso stitchBlockEnd <= reader.BaseStream.Length Then
-            Seek(CInt(stitchBlockEnd))
-        End If
 
         ' --- Small icon graphics (guard sizes) ---
         Dim wStride As Integer = Clamp(stride, 0, MAX_STRIDE)
@@ -112,6 +99,28 @@ Public Class PecReader
             ReadPecGraphics(CInt(byteSize), wStride, colorChanges)
         End If
     End Sub
+
+
+
+
+    ' Build the EmbPattern.ThreadList from the first N entries of the 463-byte PEC color table.
+    ' Each entry is an index into the 64-color PEC palette.
+    Private Sub ApplyPecThreads(colorBytes As Byte(), usedCount As Integer)
+        Dim set64 = EmbThreadPec.GetThreadSet()
+        pattern.ThreadList.Clear()
+
+        If set64 Is Nothing OrElse set64.Length = 0 Then Exit Sub
+        If colorBytes Is Nothing Then Exit Sub
+        If usedCount <= 0 Then Exit Sub
+
+        Dim n As Integer = Math.Min(usedCount, colorBytes.Length)
+        For i As Integer = 0 To n - 1
+            Dim idx = (CInt(colorBytes(i)) And &HFF) Mod set64.Length
+            pattern.ThreadList.Add(set64(idx))
+        Next
+    End Sub
+
+
 
     ' Render the small PEC graphics; avoid storing huge text blobs
     Private Sub ReadPecGraphics(size As Integer, stride As Integer, count As Integer)
@@ -150,80 +159,156 @@ Public Class PecReader
         Return sb.ToString()
     End Function
 
-    ' ---------------------- Stitch decoding (hardened) ----------------------
+
+
+    ' ============================== PEC stitch decode + verbose logging ==============================
     Private Sub ReadPecStitchesSafe()
+        ' - End ONLY on FF 00
+        ' - FE B0 <xx> = color change (consume the 3rd byte)
+        ' - Decode deltas (7-bit or 12-bit 2’s-complement)
+        ' - Classify using extra bits (0x70 mask on long-form bytes):
+        '     * x==0 && y==0 → BeginAnchor
+        '     * extraX==0x20 && extraY==0x20 → MovementOnly (jump, pen up)
+        '     * extraX==0x10 && extraY==0x10 → EndAnchor (pen up)
+        '     * also treat the FIRST pair after a color change, and the pair right after a MoveOnly, as EndAnchor
+        ' - Emit pattern.move for anchors/moves, pattern.stitch for normal stitches
+        ' - No rotate/flip here; renderer will just translate to (0,0) using bounds elsewhere
+
+        Const LOG_FIRST As Integer = 80
+
         Dim iter As Integer = 0
         Dim lastPos As Long = If(reader Is Nothing OrElse reader.BaseStream Is Nothing, 0L, reader.BaseStream.Position)
 
+        ' Logging + state
+        Dim logCount As Integer = 0
+        Dim lastWasMoveOnly As Boolean = False
+        Dim firstAfterColor As Boolean = True    ' C# behavior: first decoded pair after color is treated as EndAnchor
+
+        ' Stats + absolute cursor (for bbox sanity)
+        Dim nStitch As Integer = 0, nMove As Integer = 0, nBegin As Integer = 0, nEnd As Integer = 0, nJump As Integer = 0, nTrim As Integer = 0, nColor As Integer = 0
+        Dim ax As Integer = 0, ay As Integer = 0
+        Dim minX As Integer = 0, minY As Integer = 0, maxX As Integer = 0, maxY As Integer = 0
+
+
         While True
             If iter >= MAX_STITCH_ITERS Then
-                Try : Form1.Status("Error: PEC decode iteration limit reached.") : Catch : End Try
+                'Form1.StatusFromAnyThread("ERROR: iteration limit hit")
                 Exit While
             End If
             iter += 1
 
-            Dim val1 = ReadInt8()
-            If val1 = Integer.MinValue Then Exit While
-            If val1 = &HFF Then Exit While ' end
+            ' Read two bytes
+            Dim b1 = ReadInt8() : If b1 = Integer.MinValue Then Exit While
+            Dim b2 = ReadInt8() : If b2 = Integer.MinValue Then Exit While
 
-            Dim val2 = ReadInt8()
-            If val2 = Integer.MinValue Then Exit While
+            ' ---- Proper end condition: FF 00 ----
+            If b1 = &HFF AndAlso b2 = &H0 Then
+                'Form1.StatusFromAnyThread("END FF 00")
+                Exit While
+            End If
 
-            If val1 = &HFE AndAlso val2 = &HB0 Then
-                ' Color change triplet (consume the extra byte)
-                If ReadInt8() = Integer.MinValue Then Exit While
-                pattern.color_change()
+            ' ---- Color change: FE B0 <byte> ----
+            If b1 = &HFE AndAlso b2 = &HB0 Then
+                Dim unk = ReadInt8() : If unk = Integer.MinValue Then Exit While
+                pattern.color_change() : nColor += 1
+                firstAfterColor = True
+                lastWasMoveOnly = False
+                'Form1.StatusFromAnyThread($"COLOR-CHANGE (byte={unk:X2})")
                 Continue While
             End If
 
-            Dim jump As Boolean = False
-            Dim trim As Boolean = False
-            Dim x As Integer
-            Dim y As Integer
+            ' ---- Decode X (7-bit or 12-bit) ----
+            Dim extraX As Integer = 0
+            Dim dx As Integer
+            Dim nextForY As Integer
 
-            If (val1 And FLAG_LONG) <> 0 Then
-                If (val1 And TRIM_CODE) <> 0 Then trim = True
-                If (val1 And JUMP_CODE) <> 0 Then jump = True
-                Dim code12 As Integer = ((val1 And &HFF) << 8) Or (val2 And &HFF)
-                x = SignExtend12(code12)
-                val2 = ReadInt8() ' next byte for Y path
-                If val2 = Integer.MinValue Then Exit While
+            If (b1 And &H80) <> 0 Then
+                extraX = (b1 And &H70)
+                Dim code12 As Integer = ((b1 And &HFF) << 8) Or (b2 And &HFF)
+                dx = SignExtend12(code12)      ' low 12 bits as signed
+                nextForY = ReadInt8() : If nextForY = Integer.MinValue Then Exit While
             Else
-                x = SignExtend7(val1)
+                dx = SignExtend7(b1)
+                nextForY = b2
             End If
 
-            If (val2 And FLAG_LONG) <> 0 Then
-                If (val2 And TRIM_CODE) <> 0 Then trim = True
-                If (val2 And JUMP_CODE) <> 0 Then jump = True
-                Dim val3 = ReadInt8()
-                If val3 = Integer.MinValue Then Exit While
-                Dim code12y As Integer = ((val2 And &HFF) << 8) Or (val3 And &HFF)
-                y = SignExtend12(code12y)
+            ' ---- Decode Y (7-bit or 12-bit) ----
+            Dim extraY As Integer = 0
+            Dim dy As Integer
+            If (nextForY And &H80) <> 0 Then
+                extraY = (nextForY And &H70)
+                Dim yLow = ReadInt8() : If yLow = Integer.MinValue Then Exit While
+                Dim code12y As Integer = ((nextForY And &HFF) << 8) Or (yLow And &HFF)
+                dy = SignExtend12(code12y)
             Else
-                y = SignExtend7(val2)
+                dy = SignExtend7(nextForY)
             End If
 
-            If jump Then
-                pattern.move(x, y)
-            ElseIf trim Then
-                pattern.trim()
-                pattern.move(x, y)
+            ' ---- Classify per C# rules (anchors/moves) ----
+            Dim isBeginAnchor As Boolean = (dx = 0 AndAlso dy = 0)
+            Dim isMoveOnly As Boolean = (extraX = &H20 AndAlso extraY = &H20)
+            Dim isEndBits As Boolean = (extraX = &H10 AndAlso extraY = &H10)
+            Dim doEndAnchor As Boolean = isEndBits OrElse lastWasMoveOnly OrElse firstAfterColor
+
+            ' ---- Emit with pen-up/pen-down semantics ----
+            If isBeginAnchor Then
+                '  no geometry change needed except ensuring pen-up
+                'Form1.StatusFromAnyThread("BEGIN-ANCHOR")
+                ' ensure pen-up without changing position
+                pattern.move(0, 0)
+                nBegin += 1
+                lastWasMoveOnly = False
+                firstAfterColor = False
+
+            ElseIf isMoveOnly Then
+                'Form1.StatusFromAnyThread(String.Format("JUMP/MOVE dx={0,4} dy={1,4}", dx, dy))
+                pattern.move(dx, dy)
+                nMove += 1 : nJump += 1
+                lastWasMoveOnly = True
+                firstAfterColor = False
+
+            ElseIf doEndAnchor Then
+                'Form1.StatusFromAnyThread(String.Format("END-ANCHOR dx={0,4} dy={1,4}", dx, dy))
+                pattern.move(dx, dy)
+                nEnd += 1 : nMove += 1
+                lastWasMoveOnly = False
+                firstAfterColor = False
+
             Else
-                pattern.stitch(x, y)
+                'Form1.StatusFromAnyThread(String.Format("STITCH     dx={0,4} dy={1,4}", dx, dy))
+                pattern.stitch(dx, dy)
+                nStitch += 1
+                lastWasMoveOnly = False
+                firstAfterColor = False
             End If
 
-            ' forward-progress guard
+            ' ---- Absolute cursor for bbox sanity ----
+            ax += dx : ay += dy
+            If ax < minX Then minX = ax
+            If ax > maxX Then maxX = ax
+            If ay < minY Then minY = ay
+            If ay > maxY Then maxY = ay
+
+            ' ---- forward progress guard ----
             If reader IsNot Nothing AndAlso reader.BaseStream IsNot Nothing Then
                 If reader.BaseStream.Position = lastPos Then
-                    Try : Form1.Status("Error: No progress while reading PEC stream.") : Catch : End Try
+                    'Form1.StatusFromAnyThread("ERROR: no progress in stitch loop")
                     Exit While
                 End If
                 lastPos = reader.BaseStream.Position
             End If
         End While
 
+        'Form1.StatusFromAnyThread($"TOTAL: stitch={nStitch} move={nMove} begin={nBegin} end={nEnd} jump={nJump} trim={nTrim} colors={nColor}")
+        'Form1.StatusFromAnyThread($"BBox abs => min=({minX},{minY}) max=({maxX},{maxY}) size=({maxX - minX} x {maxY - minY})")
+
         pattern.end()
     End Sub
+
+
+
+
+
 
     ' ---------------------- Color mapping (unchanged behavior, guarded) ----------------------
     Private Sub ProcessPecColors(colorBytes As Byte())

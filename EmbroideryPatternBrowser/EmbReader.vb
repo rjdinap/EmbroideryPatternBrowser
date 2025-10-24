@@ -131,6 +131,15 @@ Public MustInherit Class EmbReader
     End Function
 
 
+    Public Function ReadN(count As Integer) As Byte()
+        If count <= 0 Then Return Array.Empty(Of Byte)()
+        Dim buf = New Byte(count - 1) {}
+        Dim got As Integer = reader.Read(buf, 0, count)
+        If got <> count Then Array.Resize(buf, got)
+        Return buf
+    End Function
+
+
     Protected Function ReadAllRemainingBytes() As Byte()
         Dim remaining As Long = reader.BaseStream.Length - reader.BaseStream.Position
         If remaining <= 0 Then Return New Byte() {}

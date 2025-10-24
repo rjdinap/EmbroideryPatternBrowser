@@ -36,6 +36,10 @@ Partial Class Form1
         Me.ToolsToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.ScanForImagesToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.SettingsToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
+        Me.ToolStripMenuItem1 = New System.Windows.Forms.ToolStripSeparator()
+        Me.MaintenanceToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
+        Me.CheckDatabaseHealthToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
+        Me.OptimizeDatabaseToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.HelpToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.AboutToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.ShowHelpFIleToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
@@ -55,10 +59,6 @@ Partial Class Form1
         Me.Panel_Right_Bottom = New System.Windows.Forms.Panel()
         Me.Panel_Right_Bottom_Fill = New System.Windows.Forms.Panel()
         Me.Panel_Right_Bottom_Top = New System.Windows.Forms.Panel()
-        Me.ToolStripMenuItem1 = New System.Windows.Forms.ToolStripSeparator()
-        Me.MaintenanceToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
-        Me.OptimizeDatabaseToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
-        Me.CheckDatabaseHealthToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.Panel_Main_Top.SuspendLayout()
         Me.MenuStrip1.SuspendLayout()
         Me.Panel_Main_Bottom.SuspendLayout()
@@ -181,14 +181,38 @@ Partial Class Form1
         'ScanForImagesToolStripMenuItem
         '
         Me.ScanForImagesToolStripMenuItem.Name = "ScanForImagesToolStripMenuItem"
-        Me.ScanForImagesToolStripMenuItem.Size = New System.Drawing.Size(180, 24)
+        Me.ScanForImagesToolStripMenuItem.Size = New System.Drawing.Size(175, 24)
         Me.ScanForImagesToolStripMenuItem.Text = "Scan for Images"
         '
         'SettingsToolStripMenuItem
         '
         Me.SettingsToolStripMenuItem.Name = "SettingsToolStripMenuItem"
-        Me.SettingsToolStripMenuItem.Size = New System.Drawing.Size(180, 24)
+        Me.SettingsToolStripMenuItem.Size = New System.Drawing.Size(175, 24)
         Me.SettingsToolStripMenuItem.Text = "Options"
+        '
+        'ToolStripMenuItem1
+        '
+        Me.ToolStripMenuItem1.Name = "ToolStripMenuItem1"
+        Me.ToolStripMenuItem1.Size = New System.Drawing.Size(172, 6)
+        '
+        'MaintenanceToolStripMenuItem
+        '
+        Me.MaintenanceToolStripMenuItem.DropDownItems.AddRange(New System.Windows.Forms.ToolStripItem() {Me.CheckDatabaseHealthToolStripMenuItem, Me.OptimizeDatabaseToolStripMenuItem})
+        Me.MaintenanceToolStripMenuItem.Name = "MaintenanceToolStripMenuItem"
+        Me.MaintenanceToolStripMenuItem.Size = New System.Drawing.Size(175, 24)
+        Me.MaintenanceToolStripMenuItem.Text = "Maintenance"
+        '
+        'CheckDatabaseHealthToolStripMenuItem
+        '
+        Me.CheckDatabaseHealthToolStripMenuItem.Name = "CheckDatabaseHealthToolStripMenuItem"
+        Me.CheckDatabaseHealthToolStripMenuItem.Size = New System.Drawing.Size(220, 24)
+        Me.CheckDatabaseHealthToolStripMenuItem.Text = "Check Database Health"
+        '
+        'OptimizeDatabaseToolStripMenuItem
+        '
+        Me.OptimizeDatabaseToolStripMenuItem.Name = "OptimizeDatabaseToolStripMenuItem"
+        Me.OptimizeDatabaseToolStripMenuItem.Size = New System.Drawing.Size(220, 24)
+        Me.OptimizeDatabaseToolStripMenuItem.Text = "Optimize Search Index"
         '
         'HelpToolStripMenuItem
         '
@@ -200,13 +224,13 @@ Partial Class Form1
         'AboutToolStripMenuItem
         '
         Me.AboutToolStripMenuItem.Name = "AboutToolStripMenuItem"
-        Me.AboutToolStripMenuItem.Size = New System.Drawing.Size(180, 24)
+        Me.AboutToolStripMenuItem.Size = New System.Drawing.Size(168, 24)
         Me.AboutToolStripMenuItem.Text = "About"
         '
         'ShowHelpFIleToolStripMenuItem
         '
         Me.ShowHelpFIleToolStripMenuItem.Name = "ShowHelpFIleToolStripMenuItem"
-        Me.ShowHelpFIleToolStripMenuItem.Size = New System.Drawing.Size(180, 24)
+        Me.ShowHelpFIleToolStripMenuItem.Size = New System.Drawing.Size(168, 24)
         Me.ShowHelpFIleToolStripMenuItem.Text = "Show Help FIle"
         '
         'Panel_Main_Bottom
@@ -235,7 +259,6 @@ Partial Class Form1
         Me.RichTextBox_Status.Font = New System.Drawing.Font("Microsoft Sans Serif", 12.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
         Me.RichTextBox_Status.Location = New System.Drawing.Point(0, 0)
         Me.RichTextBox_Status.Name = "RichTextBox_Status"
-        Me.RichTextBox_Status.ReadOnly = True
         Me.RichTextBox_Status.Size = New System.Drawing.Size(757, 100)
         Me.RichTextBox_Status.TabIndex = 0
         Me.RichTextBox_Status.Text = ""
@@ -369,30 +392,6 @@ Partial Class Form1
         Me.Panel_Right_Bottom_Top.Name = "Panel_Right_Bottom_Top"
         Me.Panel_Right_Bottom_Top.Size = New System.Drawing.Size(399, 34)
         Me.Panel_Right_Bottom_Top.TabIndex = 0
-        '
-        'ToolStripMenuItem1
-        '
-        Me.ToolStripMenuItem1.Name = "ToolStripMenuItem1"
-        Me.ToolStripMenuItem1.Size = New System.Drawing.Size(177, 6)
-        '
-        'MaintenanceToolStripMenuItem
-        '
-        Me.MaintenanceToolStripMenuItem.DropDownItems.AddRange(New System.Windows.Forms.ToolStripItem() {Me.CheckDatabaseHealthToolStripMenuItem, Me.OptimizeDatabaseToolStripMenuItem})
-        Me.MaintenanceToolStripMenuItem.Name = "MaintenanceToolStripMenuItem"
-        Me.MaintenanceToolStripMenuItem.Size = New System.Drawing.Size(180, 24)
-        Me.MaintenanceToolStripMenuItem.Text = "Maintenance"
-        '
-        'OptimizeDatabaseToolStripMenuItem
-        '
-        Me.OptimizeDatabaseToolStripMenuItem.Name = "OptimizeDatabaseToolStripMenuItem"
-        Me.OptimizeDatabaseToolStripMenuItem.Size = New System.Drawing.Size(214, 24)
-        Me.OptimizeDatabaseToolStripMenuItem.Text = "Optimize Search Index"
-        '
-        'CheckDatabaseHealthToolStripMenuItem
-        '
-        Me.CheckDatabaseHealthToolStripMenuItem.Name = "CheckDatabaseHealthToolStripMenuItem"
-        Me.CheckDatabaseHealthToolStripMenuItem.Size = New System.Drawing.Size(220, 24)
-        Me.CheckDatabaseHealthToolStripMenuItem.Text = "Check Database Health"
         '
         'Form1
         '
