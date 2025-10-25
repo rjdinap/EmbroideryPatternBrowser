@@ -1,14 +1,13 @@
 TODO: 
-add debug as a logging option
-need to add a bunch of logging for diagnostic purposes
-toggle advanced logging on/off from settings
+
 better searching
 
-- startup database open is too slow
+startup database open is too slow
+
 lock down the ui during optimize / rebuild to prevent stupid things like closing the database
 prevent (or discourage) closing the app during a database rebuild or optimize
 
- - add stitch viewer?
+add stitch viewer?
 
 
 update web site with new install information
@@ -17,6 +16,11 @@ update web site with new install information
 1.0.11	- fix a bug with cancelling scan for images
 		- fix a bug with pes reading; few files were inverted
 		- mousewheel to make the iamge larger / smaller and click/drag to scroll the image
+		- added a small logging framework and refactored code for it
+		- removed all the previous optimization code. added a new optimize check that's fast
+		- fix a bug with metadata deletion and searching
+
+
 
 
 1.0.10	- Add Tools -> Maintenance stuff - check database health and optimize database

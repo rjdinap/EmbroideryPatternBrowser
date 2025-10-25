@@ -118,7 +118,7 @@ Public Class Form1
                            End Sub)
 
             ' Back on UI thread: update UI
-            Logger.Info("Database ready: " & databaseName & ". Contains: " & SQLiteOperations.CountRows & " patterns.")
+            Logger.Info("Database ready: " & databaseName)
 
         Catch ex As Exception
             Logger.Error(ex.Message, ex.ToString())
@@ -183,48 +183,6 @@ Public Class Form1
         End Try
     End Sub
 
-
-    'check database health
-    ' Form1.vb
-    Private Async Sub CheckDatabaseHealthToolStripMenuItem_Click(sender As Object, e As EventArgs) _
-    Handles CheckDatabaseHealthToolStripMenuItem.Click
-
-        Dim msg As String =
-"Database maintenance
-
-This allows you to check the health of your database.
-
-If searches that used to take ~1 second now take ~5 seconds, run this check. The scan may take seconds to minutes depending on DB size/fragmentation and disk speed.
-
-When it finishes, a message will appear at the bottom indicating whether optimization is recommended.
-
-Press OK to run, or Cancel to abort."
-
-        If MessageBox.Show(Me, msg, "Check database health",
-                       MessageBoxButtons.OKCancel, MessageBoxIcon.Warning) <> DialogResult.OK Then
-            Return
-        End If
-
-        StatusProgress.ShowPopup(status:="Checking database health…", indeterminate:=True)
-
-        Dim needsOptimize As Boolean = False
-        Try
-            ' Run the heavy check off the UI thread
-            needsOptimize = Await Task.Run(Function()
-                                               Return SQLMaintenance.CheckDatabaseHealth(databaseName, "files_fts")
-                                           End Function)
-        Catch ex As Exception
-            Logger.Error("Error checking database health: " & ex.Message, ex.StackTrace)
-        Finally
-            StatusProgress.ClosePopup()
-        End Try
-
-        Logger.Info("Database needs optimization: " & needsOptimize.ToString())
-        If needsOptimize Then
-            Logger.Info("Your database needs optimization. Please use Tools → Maintenance → Optimize Search Index to improve performance.",
-               color:=Color.Red)
-        End If
-    End Sub
 
 
 
@@ -446,7 +404,7 @@ Press OK to run, or Cancel to abort."
                 If openFileDialog.ShowDialog() = DialogResult.OK Then
                     databaseName = openFileDialog.FileName
                     SQLiteOperations.InitializeSQLite(databaseName)
-                    Logger.Info("Database ready " & databaseName & ". Contains: " & SQLiteOperations.CountRows & " patterns.")
+                    Logger.Noprefix("Database ready " & databaseName)
                     My.Settings.LastDatabasePath = databaseName
                     My.Settings.Save()
                 End If
@@ -459,9 +417,9 @@ Press OK to run, or Cancel to abort."
 
     'optimize database
     Private Sub OptimizeDatabaseToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles OptimizeDatabaseToolStripMenuItem.Click
-        Dim msg As String = "Database maintenance" & vbCrLf & vbCrLf & "This Is Not a normal user Option, And should only be performed if the program has alerted you to perform maintenance." & vbCrLf & vbCrLf
-        msg = msg + "This operation will optimize the search index, which may take anywhere from several seconds to several hours depending on database size / fragmentation level / speed of your hard drive." & vbCrLf & vbCrLf
-        msg = msg + "Press OK to perform the maintenance, or Cancel to abort."
+        Dim msg As String = "Database maintenance" & vbCrLf & vbCrLf & "This Is Not a normal user Option, And should only be performed If the program has alerted you To perform maintenance." & vbCrLf & vbCrLf
+        msg = msg + "This operation will optimize the search index, which may take anywhere from several seconds To several hours depending On database size / fragmentation level / speed Of your hard drive." & vbCrLf & vbCrLf
+        msg = msg + "Press OK To perform the maintenance, Or Cancel To abort."
 
         Dim res = MessageBox.Show(Me, msg, "Optimize Search Index", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning)
         If res <> DialogResult.OK Then Exit Sub
@@ -540,10 +498,10 @@ Press OK to run, or Cancel to abort."
                                StatusProgress.ClosePopup()
                            End Sub)
 
-            'we need to check for optimization after a large scan
-            'If (result.FilesAdded + result.FilesDeleted > 40000) Then
-            'SQLiteOperations.OptimizeIndex()
-            'End If
+            'we need to check to see if we need an optimization
+            Dim delta As Long = result.FilesAdded + result.FilesUpdated + result.FilesDeleted
+            SQLiteOperations.AddRowsSinceOptimize(delta)
+            SQLiteOperations.QuickNeedsOptimize(200_000)
 
 
         Catch ex As Exception
@@ -557,11 +515,10 @@ Press OK to run, or Cancel to abort."
             t.Start()
         End Using
 
-        Logger.Info("Database contains: " & SQLiteOperations.CountRows & " patterns.")
+        'Logger.Info("Database contains: " & SQLiteOperations.CountRows & " patterns.")
 
 
     End Sub
-
 
 
 
@@ -620,73 +577,6 @@ Press OK to run, or Cancel to abort."
 
 
 
-    ' Logs to the on-screen status AND to disk.
-    ' Pass stackTrace ONLY for the disk log (kept out of the UI).
-    ' Optional textColor lets you color just this message (default = black).
-    'Public Sub Status(ByVal msg As String,
-    '              Optional ByVal stackTrace As String = Nothing,
-    '              Optional ByVal textColor As Color = Nothing
-    '                  )
-
-    '    ' --- UI log ---
-    '    If Not Me.IsHandleCreated Then Return
-
-    '    If Me.InvokeRequired Then
-    '        ' hop to UI thread
-    '        Me.BeginInvoke(CType(Sub() SetStatusUI(msg, textColor), MethodInvoker))
-    '    Else
-    '        SetStatusUI(msg, textColor)
-    '    End If
-
-    '    ' --- Disk log ---
-    '    Try
-    '        If Not _logInitialized OrElse String.IsNullOrEmpty(_logPath) Then
-    '            InitializeLogFile()
-    '        End If
-    '        If String.IsNullOrEmpty(_logPath) Then Exit Sub
-
-    '        Dim line As String = String.Format("{0:yyyy-MM-dd HH:mm:ss.fff}  {1}", DateTime.Now, msg)
-
-    '        SyncLock _logLock
-    '            IO.File.AppendAllText(_logPath, line & Environment.NewLine)
-    '            If Not String.IsNullOrEmpty(stackTrace) Then
-    '                IO.File.AppendAllText(_logPath, "    Stack: " & stackTrace & Environment.NewLine)
-    '            End If
-    '        End SyncLock
-    '    Catch
-    '        ' Never throw from logging
-    '    End Try
-    'End Sub 'Status
-
-
-
-    ' Append 1 line to the status box (optionally colored for this line only).
-    'Private Sub SetStatusUI(msg As String, Optional textColor As Color = Nothing)
-    '    Try
-    '        ' Move caret to end
-    '        RichTextBox_Status.SelectionStart = Len(RichTextBox_Status.Text)
-    '        RichTextBox_Status.SelectionLength = 0
-
-    '        ' Choose color (default = black) for this insertion only
-    '        Dim useColor As Color = If(textColor.IsEmpty, Color.Black, textColor)
-    '        RichTextBox_Status.SelectionColor = useColor
-
-    '        ' Prepend a newline like before, then append text
-    '        RichTextBox_Status.SelectedText = vbCrLf & msg
-
-    '        ' Reset selection color back to black for future appends
-    '        RichTextBox_Status.SelectionColor = Color.Black
-
-    '        ' Scroll to bottom
-    '        RichTextBox_Status.SelectionStart = Len(RichTextBox_Status.Text)
-    '        RichTextBox_Status.ScrollToCaret()
-    '    Catch
-    '        ' UI is best-effort; ignore
-    '    End Try
-    'End Sub
-
-
-
     ' ==== Enter-to-search ====
     Private Sub TextBox_Search_KeyDown(ByVal sender As System.Object, ByVal e As System.Windows.Forms.KeyEventArgs) Handles TextBox_Search.KeyDown
         If e.KeyCode = Keys.Enter Then
@@ -700,53 +590,9 @@ Press OK to run, or Cancel to abort."
     End Sub
 
 
-
-    ' 1b) Public, static-like entry point for background threads
-    'Public Sub StatusFromAnyThread(text As String, Optional stackTrace As String = Nothing,
-    '              Optional textColor As Color = Nothing)
-    '    Dim f As Form1 =
-    '        Application.OpenForms.OfType(Of Form1)().FirstOrDefault()
-
-    '    If f Is Nothing OrElse f.IsDisposed Then Return
-    '    f.InvokeIfRequired(Sub() f.Status(text, stackTrace, textColor))   ' calls your existing instance Status()
-    'End Sub
-
 End Class
 
 
-
-' 1a) Tiny helper to marshal to UI
-'Module ControlInvokeExtensions
-'    <Extension()>
-'    Public Sub InvokeIfRequired(ctrl As Control, action As Action)
-'        If ctrl Is Nothing OrElse ctrl.IsDisposed Then Return
-
-'        If ctrl.IsHandleCreated Then
-'            If ctrl.InvokeRequired Then
-'                Try
-'                    ctrl.BeginInvoke(action)
-'                Catch
-'                    ' Control is closing—ignore.
-'                End Try
-'            Else
-'                action()
-'            End If
-'        Else
-'            ' Wait until the handle is created, then run once.
-'            Dim h As EventHandler = Nothing
-'            h = Sub(sender As Object, e As EventArgs)
-'                    RemoveHandler ctrl.HandleCreated, h
-'                    If ctrl.IsDisposed Then Return
-'                    Try
-'                        ctrl.BeginInvoke(action)
-'                    Catch
-'                        ' Control is closing—ignore.
-'                    End Try
-'                End Sub
-'            AddHandler ctrl.HandleCreated, h
-'        End If
-'    End Sub
-'End Module
 
 
 

@@ -179,7 +179,6 @@
     <Compile Include="SewReader.vb" />
     <Compile Include="ShellSelectHelper.vb" />
     <Compile Include="SQLiteOperations.vb" />
-    <Compile Include="SQLMaintenance.vb" />
     <Compile Include="StatusProgressPopup.vb">
       <SubType>Form</SubType>
     </Compile>
