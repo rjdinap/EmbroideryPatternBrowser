@@ -78,7 +78,7 @@ Public Class UsbFileBrowser
             Dim bigger As New Font(Me.Font.FontFamily, Me.Font.SizeInPoints + 1.0F, Me.Font.Style)
             Me.Font = bigger
         Catch ex As Exception
-            Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+            Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
         End Try
 
         ' ===== Header (Up + Path) =====
@@ -129,7 +129,7 @@ Public Class UsbFileBrowser
                                          Try
                                              RegisterForVolumeNotifications()
                                          Catch ex As Exception
-                                             Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+                                             Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
                                          End Try
                                          RefreshView()
                                      End Sub
@@ -140,12 +140,12 @@ Public Class UsbFileBrowser
                                         _deviceChangeTimer.Stop()
                                         _deviceChangeTimer.Dispose()
                                     Catch ex As Exception
-                                        Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+                                        Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
                                     End Try
                                     Try
                                         UnregisterVolumeNotifications()
                                     Catch ex As Exception
-                                        Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+                                        Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
                                     End Try
                                 End Sub
 
@@ -249,7 +249,7 @@ Public Class UsbFileBrowser
                 Try
                     root = Path.GetPathRoot(currentFolder)
                 Catch ex As Exception
-                    Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+                    Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
                 End Try
 
                 If String.IsNullOrEmpty(root) OrElse Not Directory.Exists(root) Then
@@ -259,7 +259,7 @@ Public Class UsbFileBrowser
                 End If
             End If
         Catch ex As Exception
-            Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+            Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
         End Try
     End Sub
 
@@ -284,7 +284,7 @@ Public Class UsbFileBrowser
         Try
             parent = Directory.GetParent(currentFolder)?.FullName
         Catch ex As Exception
-            Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+            Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
         End Try
 
         If String.IsNullOrEmpty(parent) OrElse Not Directory.Exists(parent) Then
@@ -305,7 +305,7 @@ Public Class UsbFileBrowser
                 Try
                     If Directory.Exists(kind.Path) Then NavigateToFolder(kind.Path)
                 Catch ex As Exception
-                    Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+                    Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
                 End Try
             Case ItemKindType.File
                 ' No open action per requirements
@@ -325,7 +325,7 @@ Public Class UsbFileBrowser
                 _ctxItem = lv.HitTest(e.Location).Item   ' may be Nothing
                 ctx.Show(lv, e.Location)
             Catch ex As Exception
-                Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+                Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
             End Try
         End If
     End Sub
@@ -372,7 +372,7 @@ Public Class UsbFileBrowser
                 Return currentFolder
             End If
         Catch ex As Exception
-            Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+            Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
         End Try
 
         Return Nothing ' At USB root with no selection
@@ -398,7 +398,7 @@ Public Class UsbFileBrowser
                 })
             End If
         Catch ex As Exception
-            Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+            Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
             MessageBox.Show("Could not open in Explorer: " & ex.Message, "USB Browser",
                             MessageBoxButtons.OK, MessageBoxIcon.Error)
         End Try
@@ -409,7 +409,7 @@ Public Class UsbFileBrowser
         Try
             txtPath.Text = If(currentFolder, "(USB Drives)")
         Catch ex As Exception
-            Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+            Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
         End Try
 
         lv.BeginUpdate()
@@ -429,7 +429,7 @@ Public Class UsbFileBrowser
                             label = di.VolumeLabel & " (" & di.Name.TrimEnd("\"c) & ")"
                         End If
                     Catch ex As Exception
-                        Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+                        Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
                     End Try
 
                     Dim li As New ListViewItem(label)
@@ -452,14 +452,14 @@ Public Class UsbFileBrowser
                 Try
                     dirs = Directory.EnumerateDirectories(currentFolder)
                 Catch ex As Exception
-                    Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+                    Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
                 End Try
                 For Each d In dirs
                     Dim baseName As String = ""
                     Try
                         baseName = Path.GetFileName(d)
                     Catch ex As Exception
-                        Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+                        Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
                         Continue For
                     End Try
                     Dim displayName = baseName & " (dir)"
@@ -475,14 +475,14 @@ Public Class UsbFileBrowser
                 Try
                     files = Directory.EnumerateFiles(currentFolder)
                 Catch ex As Exception
-                    Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+                    Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
                 End Try
                 For Each f In files
                     Dim fi As FileInfo = Nothing
                     Try
                         fi = New FileInfo(f)
                     Catch ex As Exception
-                        Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+                        Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
                         Continue For
                     End Try
 
@@ -504,12 +504,12 @@ Public Class UsbFileBrowser
                         lv.AutoResizeColumns(ColumnHeaderAutoResizeStyle.ColumnContent)
                         lv.Columns(COL_NAME).Width = Math.Max(lv.Columns(COL_NAME).Width, 280)
                     Catch ex As Exception
-                        Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+                        Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
                     End Try
                 End If
             End If
         Catch ex As Exception
-            Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+            Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
         Finally
             lv.EndUpdate()
         End Try
@@ -539,7 +539,7 @@ Public Class UsbFileBrowser
             If cmp IsNot Nothing Then items.Sort(cmp)
             If Not sortAscending Then items.Reverse()
         Catch ex As Exception
-            Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+            Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
         End Try
     End Sub
 
@@ -557,7 +557,7 @@ Public Class UsbFileBrowser
         Try
             dest = Path.Combine(currentFolder, name.Trim())
         Catch ex As Exception
-            Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+            Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
             Return
         End Try
 
@@ -569,7 +569,7 @@ Public Class UsbFileBrowser
                 MessageBox.Show("Folder already exists.", "USB Browser", MessageBoxButtons.OK, MessageBoxIcon.Information)
             End If
         Catch ex As Exception
-            Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+            Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
             MessageBox.Show("Failed to create folder: " & ex.Message, "USB Browser", MessageBoxButtons.OK, MessageBoxIcon.Error)
         End Try
     End Sub
@@ -631,7 +631,7 @@ Public Class UsbFileBrowser
             End If
 
         Catch ex As Exception
-            Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+            Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
         End Try
 
         ' Keep both real file paths and composite zip paths
@@ -654,11 +654,11 @@ Public Class UsbFileBrowser
                         End If
                     End If
                 Catch ex As Exception
-                    Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+                    Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
                 End Try
             Next
         Catch ex As Exception
-            Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+            Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
         End Try
 
         letters.Sort()
@@ -675,7 +675,7 @@ Public Class UsbFileBrowser
                 driveId = rootWithSep.TrimEnd("\"c)
                 If Not driveId.EndsWith(":") Then driveId &= ":"
             Catch ex As Exception
-                Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+                Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
                 Return False
             End Try
 
@@ -688,7 +688,7 @@ Public Class UsbFileBrowser
                             Try
                                 partId = CStr(part("DeviceID")).Replace("\", "\\")
                             Catch ex As Exception
-                                Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+                                Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
                                 Continue For
                             End Try
 
@@ -705,7 +705,7 @@ Public Class UsbFileBrowser
                                     Try
                                         pnp = GetMoString(dd, "PNPDeviceID")
                                     Catch ex As Exception
-                                        Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+                                        Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
                                     End Try
 
                                     If String.Equals(iface, "USB", StringComparison.OrdinalIgnoreCase) Then Return True
@@ -717,7 +717,7 @@ Public Class UsbFileBrowser
                 Next
             End Using
         Catch ex As Exception
-            Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+            Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
         End Try
 
         Return False
@@ -781,7 +781,7 @@ Public Class UsbFileBrowser
             If val Is Nothing Then Return ""
             Return val.ToString()
         Catch ex As Exception
-            Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+            Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
             Return ""
         End Try
     End Function
@@ -891,7 +891,7 @@ Public Class UsbFileBrowser
                         Throw
                     Catch ex As Exception
                         ' Log and continue to next file
-                        Form1.Status("Copy error: " & ex.Message, ex.StackTrace.ToString)
+                        Form1.StatusFromAnyThread("Copy error: " & ex.Message, ex.StackTrace.ToString)
                     Finally
                         Threading.Interlocked.Increment(_progressIndex)
                     End Try
@@ -1110,7 +1110,7 @@ Public Class UsbFileBrowser
                 End If
             End If
         Catch ex As Exception
-            Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+            Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
         End Try
         Return out.Distinct(StringComparer.OrdinalIgnoreCase).ToList()
     End Function

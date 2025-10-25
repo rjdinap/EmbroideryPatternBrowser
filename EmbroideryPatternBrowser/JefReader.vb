@@ -42,7 +42,7 @@
             ' --- Validate stitchOffset and seek safely ---
             Dim fileLen As Long = If(reader IsNot Nothing AndAlso reader.BaseStream IsNot Nothing, reader.BaseStream.Length, 0L)
             If stitchOffset < 0 OrElse stitchOffset > fileLen Then
-                Form1.Status("Error: Invalid JEF stitch offset.")
+                Form1.StatusFromAnyThread("Error: Invalid JEF stitch offset.")
                 pattern.end()
                 Return
             End If
@@ -51,7 +51,7 @@
             ReadJefStitchesSafe(fileLen)
 
         Catch ex As Exception
-            Try : Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString) : Catch : End Try
+            Try : Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString) : Catch : End Try
             Try : pattern.end() : Catch : End Try
         End Try
     End Sub
@@ -66,7 +66,7 @@
 
         While True
             If loopIters >= MAX_LOOP_ITERS Then
-                Form1.Status("Error: JEF decode iteration limit reached.")
+                Form1.StatusFromAnyThread("Error: JEF decode iteration limit reached.")
                 Exit While
             End If
             loopIters += 1
@@ -77,13 +77,13 @@
 
             ' Progress guard
             If reader.BaseStream.Position = lastPos Then
-                Form1.Status("Error: No progress while reading JEF stream.")
+                Form1.StatusFromAnyThread("Error: No progress while reading JEF stream.")
                 Exit While
             End If
             lastPos = reader.BaseStream.Position
 
             If bytesRead > MAX_STITCH_BYTES Then
-                Form1.Status("Error: JEF stitch data exceeds maximum size.")
+                Form1.StatusFromAnyThread("Error: JEF stitch data exceeds maximum size.")
                 Exit While
             End If
 

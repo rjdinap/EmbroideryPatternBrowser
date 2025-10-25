@@ -57,7 +57,7 @@
 
         ' Seek to command stream start; if we can't, we must stop cleanly.
         If Not offsetsValid Then
-            Try : Form1.Status("Error: HUS offsets invalid; skipping stitches.") : Catch : End Try
+            Try : Form1.StatusFromAnyThread("Error: HUS offsets invalid; skipping stitches.") : Catch : End Try
             pattern.end() : Return
         End If
         Seek(command_offset)

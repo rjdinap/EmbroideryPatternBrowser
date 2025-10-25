@@ -40,7 +40,7 @@ Public Class PopupMenuItems
         Try
             _openDirAction()
         Catch ex As Exception
-            Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+            Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
         End Try
     End Sub
 
@@ -49,7 +49,7 @@ Public Class PopupMenuItems
         Try
             _editMetadataAction()
         Catch ex As Exception
-            Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+            Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
         End Try
     End Sub
 
@@ -58,7 +58,7 @@ Public Class PopupMenuItems
         Try
             _copyPathAction()
         Catch ex As Exception
-            Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+            Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
         End Try
     End Sub
 
@@ -67,7 +67,7 @@ Public Class PopupMenuItems
         Try
             _cms.Show(owner, location)
         Catch ex As Exception
-            Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+            Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
         End Try
     End Sub
 
@@ -79,7 +79,7 @@ Public Class PopupMenuItems
             RemoveHandler _cms.Closing, Nothing ' no-op; placeholder if handlers are added later
             _cms.Dispose()
         Catch ex As Exception
-            Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+            Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
         End Try
     End Sub
 End Class

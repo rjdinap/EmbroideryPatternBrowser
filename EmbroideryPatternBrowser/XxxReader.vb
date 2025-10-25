@@ -30,7 +30,7 @@
 
             While True
                 If iters >= MAX_STITCH_ITERS Then
-                    Try : Form1.Status("Error: XXX decode iteration limit reached.") : Catch : End Try
+                    Try : Form1.StatusFromAnyThread("Error: XXX decode iteration limit reached.") : Catch : End Try
                     Exit While
                 End If
                 iters += 1
@@ -83,7 +83,7 @@
                 ' forward-progress guard (corruption protection)
                 Dim nowPos As Long = SafeStreamPos()
                 If nowPos = lastPos Then
-                    Try : Form1.Status("Error: No progress while reading XXX stream.") : Catch : End Try
+                    Try : Form1.StatusFromAnyThread("Error: No progress while reading XXX stream.") : Catch : End Try
                     Exit While
                 End If
                 lastPos = nowPos
@@ -116,7 +116,7 @@
 
         Catch ex As Exception
             ' concise error message for UI; no stack trace (heuristic-friendly)
-            Try : Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString) : Catch : End Try
+            Try : Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString) : Catch : End Try
             Try : pattern.end() : Catch : End Try
         End Try
     End Sub

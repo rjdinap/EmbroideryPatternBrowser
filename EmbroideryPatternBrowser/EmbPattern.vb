@@ -252,7 +252,7 @@ Public Class EmbPattern
         Catch ex As Exception
             ' Project-wide policy: log succinct error to the UI; avoid stack traces here.
             Try
-                Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+                Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
             Catch
                 ' ignore secondary failures
             End Try

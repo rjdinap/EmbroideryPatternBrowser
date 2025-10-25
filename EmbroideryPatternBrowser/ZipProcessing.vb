@@ -120,7 +120,7 @@ Public Class ZipProcessing
 
         Catch ex As Exception
             ' Optional: log once per ZIP to avoid log spam on huge archives
-            Form1.Status($"ZIP scan failed: {zipPath}: {ex.Message}")
+            Form1.StatusFromAnyThread($"ZIP scan failed: {zipPath}: {ex.Message}")
         End Try
         Return zipEntries
     End Function

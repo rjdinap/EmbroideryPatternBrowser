@@ -75,7 +75,7 @@
 
         ' ---- seek to command stream start (if invalid offsets, stop cleanly like HusReader) ----
         If Not offsetsValid Then
-            Try : Form1.Status("Error: VIP offsets invalid; skipping stitches.") : Catch : End Try
+            Try : Form1.StatusFromAnyThread("Error: VIP offsets invalid; skipping stitches.") : Catch : End Try
             pattern.end() : Return
         End If
         Seek(command_offset)

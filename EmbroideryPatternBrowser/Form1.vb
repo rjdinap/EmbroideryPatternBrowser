@@ -80,22 +80,9 @@ Public Class Form1
             Try : SQLiteOperations.CloseSQLite() : Catch : End Try
         End Sub
 
-        ' Make the preview always fit inside the box
-        'With PictureBox_FullImage
-        '.Dock = DockStyle.Fill
-        '.AutoSize = False
-        '.SizeMode = PictureBoxSizeMode.Zoom
-        '.Margin = New Padding(0)
-        '.Padding = New Padding(0)
-        '.BackColor = Color.White
-        'End With
-        'PictureBox_FullImage.SizeMode = PictureBoxSizeMode.Zoom
-        'PictureBox_FullImage.BackColor = Color.White   ' optional, nicer look behind transparent areas
-
-
         Status("Welcome to EmbroideryPatternBrowser! : Version " & ver & vbCrLf)
 
-        FastFileScanner.ReportStatus = AddressOf Me.Status
+        'FastFileScanner.ReportStatus = AddressOf Me.Status
     End Sub
 
 
@@ -733,17 +720,17 @@ Press OK to run, or Cancel to abort."
         TextBox_Search.Text = ""
     End Sub
 
-    ' 1b) Public, static-like entry point for background threads
 
-    Public Sub StatusFromAnyThread(text As String)
+
+    ' 1b) Public, static-like entry point for background threads
+    Public Sub StatusFromAnyThread(text As String, Optional stackTrace As String = Nothing,
+                  Optional textColor As Color = Nothing)
         Dim f As Form1 =
             Application.OpenForms.OfType(Of Form1)().FirstOrDefault()
 
         If f Is Nothing OrElse f.IsDisposed Then Return
-        f.InvokeIfRequired(Sub() f.Status(text))   ' calls your existing instance Status()
+        f.InvokeIfRequired(Sub() f.Status(text, stackTrace, textColor))   ' calls your existing instance Status()
     End Sub
-
-
 
 End Class
 

@@ -39,7 +39,7 @@ Public Class PecReader
             ReadPecCore()
 
         Catch ex As Exception
-            Try : Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString) : Catch : End Try
+            Try : Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString) : Catch : End Try
             Try : pattern.end() : Catch : End Try
         End Try
     End Sub

@@ -17,7 +17,7 @@ Public Class DstReader
             DstReadHeader()
             DstReadStitches()
         Catch ex As Exception
-            Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+            Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
             Throw
         End Try
     End Sub
@@ -118,7 +118,7 @@ Public Class DstReader
 
             commandsRead += 1
             If commandsRead > MAX_STITCH_COMMANDS Then
-                Form1.Status("Error: Too many stitch commands; file may be corrupt.")
+                Form1.StatusFromAnyThread("Error: Too many stitch commands; file may be corrupt.")
                 Exit While
             End If
 

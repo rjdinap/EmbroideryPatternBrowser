@@ -60,7 +60,7 @@ Public Module EmbThumbnail
             Try
                 pat = EmbReaderFactory.LoadPattern(filePath)
             Catch ex As Exception
-                Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString)
+                Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
                 Return Nothing
             End Try
 
@@ -69,7 +69,7 @@ Public Module EmbThumbnail
             Return img
 
         Catch ex As Exception
-            Try : Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString) : Catch : End Try
+            Try : Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString) : Catch : End Try
             Return Nothing
         End Try
     End Function
@@ -328,7 +328,7 @@ Public Module EmbThumbnail
             ' ====================== /RENDER ======================
 
         Catch ex As Exception
-            Try : Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString) : Catch : End Try
+            Try : Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString) : Catch : End Try
             Return Nothing
         End Try
     End Function

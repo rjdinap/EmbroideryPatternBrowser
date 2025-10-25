@@ -78,12 +78,12 @@ Public Module FastFileScanner
 
 
     ' Set once at startup: FastFileScanner.ReportStatus = AddressOf Form1.Status
-    Public WriteOnly Property ReportStatus As Action(Of String)
-        Set(value As Action(Of String))
-            _reportStatus = value
-        End Set
-    End Property
-    Private _reportStatus As Action(Of String)
+    'Public WriteOnly Property ReportStatus As Action(Of String)
+    '   Set(value As Action(Of String))
+    '      _reportStatus = value
+    'End Set
+    'End Property
+    'Private _reportStatus As Action(Of String)
 
 
     ' ---------- Public scan entry point ----------
@@ -112,7 +112,7 @@ Public Module FastFileScanner
         End If
 
         Try
-            Form1.Status("Note: for safety and speed, system folders like \Windows and \Program Files are not scanned.")
+            Form1.StatusFromAnyThread("Note: for safety and speed, system folders like \Windows and \Program Files are not scanned.")
         Catch
         End Try
 
@@ -324,7 +324,7 @@ ON CONFLICT(fullpath) DO UPDATE SET
                         stats.FilesDeleted += delCount
 
                         ' Emit per-root summary
-                        Form1.Status(String.Format("Perf(root): {0}  sel={1} ms, enum={2} ms, write={3} ms, found={4}, add={5}, upd={6}, del={7}",
+                        Form1.StatusFromAnyThread(String.Format("Perf(root): {0}  sel={1} ms, enum={2} ms, write={3} ms, found={4}, add={5}, upd={6}, del={7}",
                                                    root,
                                                    swSel.ElapsedMilliseconds,
                                                    swEnum.ElapsedMilliseconds,
@@ -342,7 +342,7 @@ ON CONFLICT(fullpath) DO UPDATE SET
         stats.ElapsedMs = swTotal.ElapsedMilliseconds
 
         ' Overall timing line
-        Form1.Status(String.Format("Timing: dirs={0} ms, reconcile={1} ms, total={2} ms",
+        Form1.StatusFromAnyThread(String.Format("Timing: dirs={0} ms, reconcile={1} ms, total={2} ms",
                                    swDirs.ElapsedMilliseconds, swReconcile.ElapsedMilliseconds, swTotal.ElapsedMilliseconds))
 
         Try : StatusProgress.ClosePopup() : Catch : End Try

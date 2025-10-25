@@ -31,7 +31,7 @@
             ' Validate and seek to stitch data
             Dim fileLen As Long = If(reader IsNot Nothing AndAlso reader.BaseStream IsNot Nothing, reader.BaseStream.Length, 0L)
             If STITCH_OFFSET < 0 OrElse STITCH_OFFSET > fileLen Then
-                Form1.Status("Error: Invalid SEW stitch offset.")
+                Form1.StatusFromAnyThread("Error: Invalid SEW stitch offset.")
                 pattern.end()
                 Return
             End If
@@ -40,7 +40,7 @@
             ReadSewStitchesSafe(fileLen)
 
         Catch ex As Exception
-            Try : Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString) : Catch : End Try
+            Try : Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString) : Catch : End Try
             Try : pattern.end() : Catch : End Try
         End Try
     End Sub
@@ -52,7 +52,7 @@
 
         While True
             If iters >= MAX_STITCH_ITERS Then
-                Form1.Status("Error: SEW decode iteration limit reached.")
+                Form1.StatusFromAnyThread("Error: SEW decode iteration limit reached.")
                 Exit While
             End If
             iters += 1
@@ -62,7 +62,7 @@
 
             ' Progress/EOF guards
             If reader.BaseStream.Position = lastPos Then
-                Form1.Status("Error: No progress while reading SEW stream.")
+                Form1.StatusFromAnyThread("Error: No progress while reading SEW stream.")
                 Exit While
             End If
             lastPos = reader.BaseStream.Position

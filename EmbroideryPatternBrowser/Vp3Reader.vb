@@ -55,7 +55,7 @@ Public Class Vp3Reader
             pattern.end()
 
         Catch ex As Exception
-            Try : Form1.Status("Error: " & ex.Message, ex.StackTrace.ToString) : Catch : End Try
+            Try : Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString) : Catch : End Try
             Try : pattern.end() : Catch : End Try
         End Try
     End Sub
@@ -71,7 +71,7 @@ Public Class Vp3Reader
         ' Distance to next block (relative, big-endian)
         Dim distance_to_next_block As Integer = SafeReadInt32BE(-1)
         If distance_to_next_block < 0 OrElse distance_to_next_block > MAX_BLOCK_SIZE Then
-            Form1.Status("Error: VP3 block size invalid.")
+            Form1.StatusFromAnyThread("Error: VP3 block size invalid.")
             Return False
         End If
 
@@ -116,7 +116,7 @@ Public Class Vp3Reader
 
         Dim stitch_len As Integer = CInt(Math.Min(Integer.MaxValue, stitch_len_long))
         If stitch_len > MAX_BLOCK_SIZE Then
-            Form1.Status("Error: VP3 stitch block too large.")
+            Form1.StatusFromAnyThread("Error: VP3 stitch block too large.")
             ' Seek to block end and continue
             Seek(CInt(block_end))
             Return True
@@ -134,7 +134,7 @@ Public Class Vp3Reader
 
         While i < stitch_len - 1
             If iters >= MAX_STITCH_ITERS Then
-                Form1.Status("Error: VP3 decode iteration limit reached.")
+                Form1.StatusFromAnyThread("Error: VP3 decode iteration limit reached.")
                 Exit While
             End If
             iters += 1
