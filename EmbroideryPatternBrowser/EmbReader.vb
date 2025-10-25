@@ -8,8 +8,8 @@ Public MustInherit Class EmbReader
     Protected baseStream As Stream
 
 
-
-    Public Overridable Sub Read()
+    'read really does not need the input path, but we pass it because on any errors, we want to know the filename that errored.
+    Public Overridable Sub Read(fn As String)
     End Sub
 
 
@@ -36,7 +36,7 @@ Public MustInherit Class EmbReader
 
             reader = New BinaryReader(baseStream)
             ' Hand off to the format-specific reader
-            Read()
+            Read(inputPath)
 
         Finally
             ' If your derived readers need the stream longer, move disposal out as needed.

@@ -5,8 +5,10 @@
     Private Const MAX_COLORS As Integer = 4096
     Private Const MAX_STITCH_ITERS As Integer = 50 * 1024 * 1024   ' hard loop limiter
     Private Const STITCH_OFFSET As Integer = &H1D78                 ' format-fixed start
+    Private _fileName As String = ""
 
-    Public Overrides Sub Read()
+    Public Overrides Sub Read(fn As String)
+        _fileName = fn
         Try
             ' Threads palette per header (with safe fallback)
             Dim threads As EmbThread() = EmbThreadSew.GetThreadSet()
@@ -31,7 +33,7 @@
             ' Validate and seek to stitch data
             Dim fileLen As Long = If(reader IsNot Nothing AndAlso reader.BaseStream IsNot Nothing, reader.BaseStream.Length, 0L)
             If STITCH_OFFSET < 0 OrElse STITCH_OFFSET > fileLen Then
-                Form1.StatusFromAnyThread("Error: Invalid SEW stitch offset.")
+                Logger.Error("SewReader: error in file: " & _fileName & " - Invalid SEW stitch offset.")
                 pattern.end()
                 Return
             End If
@@ -40,7 +42,7 @@
             ReadSewStitchesSafe(fileLen)
 
         Catch ex As Exception
-            Try : Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString) : Catch : End Try
+            Try : Logger.Error("SewReader: error in file: " & _fileName & " - " & ex.Message, ex.StackTrace.ToString) : Catch : End Try
             Try : pattern.end() : Catch : End Try
         End Try
     End Sub
@@ -52,7 +54,7 @@
 
         While True
             If iters >= MAX_STITCH_ITERS Then
-                Form1.StatusFromAnyThread("Error: SEW decode iteration limit reached.")
+                Logger.Error("SewReader: error in file: " & _fileName & " - SEW decode iteration limit reached.")
                 Exit While
             End If
             iters += 1
@@ -62,7 +64,7 @@
 
             ' Progress/EOF guards
             If reader.BaseStream.Position = lastPos Then
-                Form1.StatusFromAnyThread("Error: No progress while reading SEW stream.")
+                Logger.Error("SewReader: error in file: " & _fileName & " - No progress while reading SEW stream.")
                 Exit While
             End If
             lastPos = reader.BaseStream.Position

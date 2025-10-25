@@ -2,11 +2,13 @@
     Inherits PecReader   ' If you renamed: Inherits PecReaderSafe
 
     Private Const PROP_VERSION As String = "version"
+    Private _fileName As String = ""
 
-    Public Overrides Sub Read()
+    Public Overrides Sub Read(fn As String)
+        _fileName = fn
         ReadPESHeader()
         ' After header handlers call Seek(pecStart), delegate to base PEC reader:
-        MyBase.Read()
+        MyBase.Read(fn)
     End Sub
 
     Private Sub ReadPESHeader()

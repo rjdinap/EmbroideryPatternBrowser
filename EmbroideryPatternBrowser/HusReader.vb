@@ -1,7 +1,11 @@
 ﻿Public Class HusReader
     Inherits EmbReader
 
-    Public Overrides Sub Read()
+    Private _fileName As String = ""
+
+    Public Overrides Sub Read(fn As String)
+        _fileName = fn
+
         ' --- Header (HUS little-endian) ---
         Dim magic_code As Integer = ReadInt32LE()
         Dim number_of_stitches As Integer = ReadInt32LE()
@@ -57,7 +61,7 @@
 
         ' Seek to command stream start; if we can't, we must stop cleanly.
         If Not offsetsValid Then
-            Try : Form1.StatusFromAnyThread("Error: HUS offsets invalid; skipping stitches.") : Catch : End Try
+            Try : Logger.Error("HusReader: error in file: " & _fileName & "- HUS offsets invalid; skipping stitches.") : Catch : End Try
             pattern.end() : Return
         End If
         Seek(command_offset)

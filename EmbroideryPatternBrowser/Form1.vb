@@ -22,6 +22,9 @@ Imports System.Text.RegularExpressions
 Imports System.Threading
 Imports Microsoft.WindowsAPICodePack.Dialogs
 
+
+
+
 Public Class Form1
 
 
@@ -43,7 +46,10 @@ Public Class Form1
     Private Sub EmbroideryPatternBrowser_Load(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles MyBase.Load
 
         StatusProgress.ShowPopup(status:="Setting up...", indeterminate:=True)
-        InitializeLogFile()
+        Logger.Initialize() ' uses Documents\EmbroideryPatternBrowser\logs\EmbroideryPatternBrowser-YYYYMMDD.log
+        Logger.AttachUI(Me, RichTextBox_Status) ' your status RichTextBox
+        'Logger.SetMinLevels(screenLevel:=LogLevel.INFO, fileLevel:=LogLevel.DEBUG)
+        'InitializeLogFile()
         Me.WindowState = FormWindowState.Maximized
 
         ' Hide legacy left panel UI
@@ -63,15 +69,15 @@ Public Class Form1
 
         'handle any uncaught exceptions
         AddHandler Application.ThreadException, Sub(sender2, args)
-                                                    Try : Status("Error: " & args.Exception.Message, args.Exception.ToString()) : Catch : End Try
+                                                    Try : Logger.Info("Error: " & args.Exception.Message, args.Exception.ToString()) : Catch : End Try
                                                 End Sub
 
         AddHandler AppDomain.CurrentDomain.UnhandledException, Sub(sender2, args)
                                                                    Dim ex = TryCast(args.ExceptionObject, Exception)
                                                                    If ex IsNot Nothing Then
-                                                                       Try : Status("Error: " & ex.Message, ex.ToString()) : Catch : End Try
+                                                                       Try : Logger.Error(ex.Message, ex.ToString()) : Catch : End Try
                                                                    Else
-                                                                       Try : Status("Error: Unhandled exception (no details).") : Catch : End Try
+                                                                       Try : Logger.Error("Unhandled exception (no details).") : Catch : End Try
                                                                    End If
                                                                End Sub
         'close the database on application exit
@@ -80,9 +86,8 @@ Public Class Form1
             Try : SQLiteOperations.CloseSQLite() : Catch : End Try
         End Sub
 
-        Status("Welcome to EmbroideryPatternBrowser! : Version " & ver & vbCrLf)
+        Logger.Noprefix("Welcome to EmbroideryPatternBrowser! : Version " & ver & vbCrLf)
 
-        'FastFileScanner.ReportStatus = AddressOf Me.Status
     End Sub
 
 
@@ -113,10 +118,10 @@ Public Class Form1
                            End Sub)
 
             ' Back on UI thread: update UI
-            Status("Database ready: " & databaseName & ". Contains: " & SQLiteOperations.CountRows & " patterns.")
+            Logger.Info("Database ready: " & databaseName & ". Contains: " & SQLiteOperations.CountRows & " patterns.")
 
         Catch ex As Exception
-            Status("Error: " & ex.Message, ex.ToString())
+            Logger.Error(ex.Message, ex.ToString())
         Finally
             Try : StatusProgress.ClosePopup() : Catch : End Try
             Me.UseWaitCursor = False
@@ -137,7 +142,7 @@ Public Class Form1
         Try
             AboutForm.ShowDialog()
         Catch ex As Exception
-            Status("Error: " & ex.Message, ex.StackTrace.ToString)
+            Logger.Error(ex.Message, ex.StackTrace.ToString)
         End Try
     End Sub
 
@@ -151,7 +156,7 @@ Public Class Form1
             Dim dt = SQLiteOperations.SearchParsed(TextBox_Search.Text, ComboBox_Filter.Text)
             sw.Stop()
 
-            Status(String.Format("Search completed in {0} ms. Keyword: ""{1}"". Rows: {2}",
+            Logger.Info(String.Format("Search completed in {0} ms. Keyword: ""{1}"". Rows: {2}",
                             sw.ElapsedMilliseconds, TextBox_Search.Text, If(dt IsNot Nothing, dt.Rows.Count, 0)))
 
             Dim grid As New VirtualThumbGrid() With {.Dock = DockStyle.Fill}
@@ -161,7 +166,7 @@ Public Class Form1
             grid.Bind(dt, AddressOf CreateImageFromPatternWrapper, PictureBox_FullImage, AddressOf SaveMetadataToDb)
             grid.Focus()
         Catch ex As Exception
-            Status("Error: " & ex.Message, ex.StackTrace.ToString)
+            Logger.Error(ex.Message, ex.StackTrace.ToString)
         End Try
     End Sub
 
@@ -174,7 +179,7 @@ Public Class Form1
                 PictureBox_FullImage.Image = GraphicsFunctions.RotateImage(PictureBox_FullImage.Image, 90.0F)
             End If
         Catch ex As Exception
-            Status("Error: " & ex.Message, ex.StackTrace.ToString)
+            Logger.Error(ex.Message, ex.StackTrace.ToString)
         End Try
     End Sub
 
@@ -209,15 +214,15 @@ Press OK to run, or Cancel to abort."
                                                Return SQLMaintenance.CheckDatabaseHealth(databaseName, "files_fts")
                                            End Function)
         Catch ex As Exception
-            Status("Error checking database health: " & ex.Message, ex.StackTrace)
+            Logger.Error("Error checking database health: " & ex.Message, ex.StackTrace)
         Finally
             StatusProgress.ClosePopup()
         End Try
 
-        Status("Database needs optimization: " & needsOptimize.ToString())
+        Logger.Info("Database needs optimization: " & needsOptimize.ToString())
         If needsOptimize Then
-            Status("Your database needs optimization. Please use Tools → Maintenance → Optimize Search Index to improve performance.",
-               textColor:=Color.Red)
+            Logger.Info("Your database needs optimization. Please use Tools → Maintenance → Optimize Search Index to improve performance.",
+               color:=Color.Red)
         End If
     End Sub
 
@@ -231,7 +236,7 @@ Press OK to run, or Cancel to abort."
             Return pat.CreateImageFromPattern(w:=w, h:=h, margin:=20, densityShading:=False, shadingStrength:=1.0)
         Catch ex As Exception
             ' Return a tiny white placeholder and log a concise error
-            Status("Error " & ex.Message, ex.StackTrace.ToString)
+            Logger.Error(ex.Message, ex.StackTrace.ToString)
             Dim bmp As New Bitmap(Math.Max(1, w), Math.Max(1, h))
             Using g = Graphics.FromImage(bmp)
                 g.Clear(Color.White)
@@ -268,9 +273,9 @@ Press OK to run, or Cancel to abort."
                            End Sub)
 
             ' Back on UI thread: update UI
-            Status("Database closed.")
+            Logger.Info("Database closed.")
         Catch ex As Exception
-            Status("Error closing database " & ex.Message, ex.ToString())
+            Logger.Error("Error closing database " & ex.Message, ex.ToString())
         Finally
             Try : StatusProgress.ClosePopup() : Catch : End Try
             Me.UseWaitCursor = False
@@ -287,7 +292,7 @@ Press OK to run, or Cancel to abort."
     Private Sub CreateNewDatabaseToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles CreateNewDatabaseToolStripMenuItem1.Click
 
         Try
-            Status("Create New database()")
+            Logger.Info("Create New database()")
             Dim dirtyName As String = InputBox("Enter a name For your database")
             If String.ReferenceEquals(dirtyName, String.Empty) Then Return ' this is how we check for if the user pressed cancel
 
@@ -306,12 +311,12 @@ Press OK to run, or Cancel to abort."
             End If
 
             ' Create/open DB
-            Status("Creating New database " + databaseName)
+            Logger.Info("Creating New database " + databaseName)
             SQLiteOperations.InitializeSQLite(databaseName)
 
 
         Catch ex As Exception
-            Status("Error creating New database " & ex.Message, ex.StackTrace.ToString)
+            Logger.Error("Error creating New database " & ex.Message, ex.StackTrace.ToString)
         End Try
     End Sub
 
@@ -336,7 +341,7 @@ Press OK to run, or Cancel to abort."
 
             Catch ex As Exception
                 ' Log a short message on-screen and full details to disk (per your Status signature)
-                Try : Status("Error " & ex.Message, ex.ToString()) : Catch : End Try
+                Try : Logger.Error(ex.Message, ex.ToString()) : Catch : End Try
             End Try
         End If
     End Sub
@@ -389,42 +394,42 @@ Press OK to run, or Cancel to abort."
 
 
     'Set up log file on startup
-    Private Sub InitializeLogFile()
-        Try
+    'Private Sub InitializeLogFile()
+    '    Try
 
-            Dim docs As String = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
-            _logPath = IO.Path.Combine(docs, "EmbroideryPatternBrowser.log")
+    '        Dim docs As String = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+    '        _logPath = IO.Path.Combine(docs, "EmbroideryPatternBrowser.log")
 
-            ' Ensure file exists
-            If Not IO.File.Exists(_logPath) Then
-                Using fs = IO.File.Create(_logPath)
-                End Using
-                _logInitialized = True
-                Return
-            End If
+    '        ' Ensure file exists
+    '        If Not IO.File.Exists(_logPath) Then
+    '            Using fs = IO.File.Create(_logPath)
+    '            End Using
+    '            _logInitialized = True
+    '            Return
+    '        End If
 
-            ' Truncate to last 1MB (keep most recent) once per startup
-            Dim fi As New IO.FileInfo(_logPath)
-            If fi.Length > LOG_MAX_BYTES Then
-                Dim buf(LOG_MAX_BYTES - 1) As Byte
-                Dim read As Integer
-                Using fs As New IO.FileStream(_logPath, IO.FileMode.Open, IO.FileAccess.Read, IO.FileShare.ReadWrite)
-                    ' Seek to last 1MB and read forward
-                    fs.Seek(-LOG_MAX_BYTES, IO.SeekOrigin.End)
-                    read = fs.Read(buf, 0, buf.Length)
-                End Using
-                Using ws As New IO.FileStream(_logPath, IO.FileMode.Create, IO.FileAccess.Write, IO.FileShare.Read)
-                    ws.Write(buf, 0, read)
-                End Using
-            End If
+    '        ' Truncate to last 1MB (keep most recent) once per startup
+    '        Dim fi As New IO.FileInfo(_logPath)
+    '        If fi.Length > LOG_MAX_BYTES Then
+    '            Dim buf(LOG_MAX_BYTES - 1) As Byte
+    '            Dim read As Integer
+    '            Using fs As New IO.FileStream(_logPath, IO.FileMode.Open, IO.FileAccess.Read, IO.FileShare.ReadWrite)
+    '                ' Seek to last 1MB and read forward
+    '                fs.Seek(-LOG_MAX_BYTES, IO.SeekOrigin.End)
+    '                read = fs.Read(buf, 0, buf.Length)
+    '            End Using
+    '            Using ws As New IO.FileStream(_logPath, IO.FileMode.Create, IO.FileAccess.Write, IO.FileShare.Read)
+    '                ws.Write(buf, 0, read)
+    '            End Using
+    '        End If
 
-            _logInitialized = True
-            Status("Initializing log file " + _logPath)
-        Catch
-            ' Swallow; logging should never crash the UI
-            _logInitialized = False
-        End Try
-    End Sub
+    '        _logInitialized = True
+    '        Status("Initializing log file " + _logPath)
+    '    Catch
+    '        ' Swallow; logging should never crash the UI
+    '        _logInitialized = False
+    '    End Try
+    'End Sub
 
 
 
@@ -441,13 +446,13 @@ Press OK to run, or Cancel to abort."
                 If openFileDialog.ShowDialog() = DialogResult.OK Then
                     databaseName = openFileDialog.FileName
                     SQLiteOperations.InitializeSQLite(databaseName)
-                    Status("Database ready " & databaseName & ". Contains: " & SQLiteOperations.CountRows & " patterns.")
+                    Logger.Info("Database ready " & databaseName & ". Contains: " & SQLiteOperations.CountRows & " patterns.")
                     My.Settings.LastDatabasePath = databaseName
                     My.Settings.Save()
                 End If
             End Using
         Catch ex As Exception
-            Status("Error " & ex.Message, ex.StackTrace.ToString)
+            Logger.Error(ex.Message, ex.StackTrace.ToString)
         End Try
     End Sub
 
@@ -463,7 +468,7 @@ Press OK to run, or Cancel to abort."
 
         ' Fire the operation (the method itself shows a progress popup)
         SQLiteOperations.OptimizeIndex()
-        Status("Index Optimization complete.")
+        Logger.Info("Index Optimization complete.")
     End Sub
 
 
@@ -474,7 +479,7 @@ Press OK to run, or Cancel to abort."
         Try
             Return SQLiteOperations.UpdateMetadataRow(row, newMetadata)
         Catch ex As Exception
-            Status("Error " & ex.Message, ex.StackTrace.ToString)
+            Logger.Error(ex.Message, ex.StackTrace.ToString)
             Return False
         End Try
     End Function
@@ -510,12 +515,6 @@ Press OK to run, or Cancel to abort."
                 Return
             End If
 
-            ' Inform user about skipped system folders (mirrors FastFileScanner policy)
-            Try
-                Status("Note \Windows And \Program Files are Not scanned.")
-            Catch
-            End Try
-
             Dim dirs As New List(Of String) From {folderPath}
 
             StatusProgress.ShowPopup(status:="Scanning directory information…", indeterminate:=True)
@@ -537,19 +536,19 @@ Press OK to run, or Cancel to abort."
 
             ' After the scan completes, post a single UI message:
             Me.BeginInvoke(Sub()
-                               Status(String.Format("Scan finished {0}", result.ToString()))
+                               Logger.Info(String.Format("Scan finished {0}", result.ToString()))
                                StatusProgress.ClosePopup()
                            End Sub)
 
             'we need to check for optimization after a large scan
-            If (result.FilesAdded + result.FilesDeleted > 40000) Then
-                SQLiteOperations.OptimizeIndex()
-            End If
+            'If (result.FilesAdded + result.FilesDeleted > 40000) Then
+            'SQLiteOperations.OptimizeIndex()
+            'End If
 
 
         Catch ex As Exception
             Me.BeginInvoke(Sub()
-                               Status("Error during scan " & ex.Message, ex.StackTrace)
+                               Logger.Error("Error during scan " & ex.Message, ex.StackTrace)
                                StatusProgress.ClosePopup()
                            End Sub)
         End Try
@@ -558,26 +557,13 @@ Press OK to run, or Cancel to abort."
             t.Start()
         End Using
 
-        Status("Database contains: " & SQLiteOperations.CountRows & " patterns.")
+        Logger.Info("Database contains: " & SQLiteOperations.CountRows & " patterns.")
 
 
     End Sub
 
 
 
-    Private Sub SetScroll(host As ScrollableControl, x As Integer, y As Integer)
-        Dim hs = host.HorizontalScroll
-        Dim vs = host.VerticalScroll
-        If hs.Maximum > 0 Then
-            x = Math.Max(hs.Minimum, Math.Min(hs.Maximum - hs.LargeChange + 1, x))
-            hs.Value = x
-        End If
-        If vs.Maximum > 0 Then
-            y = Math.Max(vs.Minimum, Math.Min(vs.Maximum - vs.LargeChange + 1, y))
-            vs.Value = y
-        End If
-        host.PerformLayout()
-    End Sub
 
 
 
@@ -614,17 +600,9 @@ Press OK to run, or Cancel to abort."
         Try
             Dim pdfPath = Path.Combine(Application.StartupPath, "Help", HelpPdfName)
             If Not File.Exists(pdfPath) Then
-                Status("Help PDF Not found " & pdfPath)
-                MessageBox.Show("Help file Not found. I'll open the Help folder so you can drop it in.",
+                Logger.Error("Help PDF Not found " & pdfPath)
+                MessageBox.Show("Help file Not found.",
                             "Help", MessageBoxButtons.OK, MessageBoxIcon.Information)
-                ' Open the Help folder (select if exists)
-                Dim helpFolder = Path.Combine(Application.StartupPath, "Help")
-                If Directory.Exists(helpFolder) Then
-                    Process.Start(New ProcessStartInfo("explorer.exe", "/e,""" & helpFolder & """") With {.UseShellExecute = True})
-                Else
-                    Directory.CreateDirectory(helpFolder)
-                    Process.Start(New ProcessStartInfo("explorer.exe", "/e,""" & helpFolder & """") With {.UseShellExecute = True})
-                End If
                 Return
             End If
 
@@ -633,7 +611,7 @@ Press OK to run, or Cancel to abort."
 
         Catch ex As Exception
             ' Per your logging rules: simple message to screen, full stack to disk
-            Status("Error: Couldn't open help PDF: " & ex.Message, ex.ToString())
+            Logger.Error("Error: Couldn't open help PDF: " & ex.Message, ex.ToString())
             MessageBox.Show("Couldn't open help PDF: " & ex.Message,
                         "Help", MessageBoxButtons.OK, MessageBoxIcon.Error)
         End Try
@@ -645,66 +623,67 @@ Press OK to run, or Cancel to abort."
     ' Logs to the on-screen status AND to disk.
     ' Pass stackTrace ONLY for the disk log (kept out of the UI).
     ' Optional textColor lets you color just this message (default = black).
-    Public Sub Status(ByVal msg As String,
-                  Optional ByVal stackTrace As String = Nothing,
-                  Optional ByVal textColor As Color = Nothing)
+    'Public Sub Status(ByVal msg As String,
+    '              Optional ByVal stackTrace As String = Nothing,
+    '              Optional ByVal textColor As Color = Nothing
+    '                  )
 
-        ' --- UI log ---
-        If Not Me.IsHandleCreated Then Return
+    '    ' --- UI log ---
+    '    If Not Me.IsHandleCreated Then Return
 
-        If Me.InvokeRequired Then
-            ' hop to UI thread
-            Me.BeginInvoke(CType(Sub() SetStatusUI(msg, textColor), MethodInvoker))
-        Else
-            SetStatusUI(msg, textColor)
-        End If
+    '    If Me.InvokeRequired Then
+    '        ' hop to UI thread
+    '        Me.BeginInvoke(CType(Sub() SetStatusUI(msg, textColor), MethodInvoker))
+    '    Else
+    '        SetStatusUI(msg, textColor)
+    '    End If
 
-        ' --- Disk log ---
-        Try
-            If Not _logInitialized OrElse String.IsNullOrEmpty(_logPath) Then
-                InitializeLogFile()
-            End If
-            If String.IsNullOrEmpty(_logPath) Then Exit Sub
+    '    ' --- Disk log ---
+    '    Try
+    '        If Not _logInitialized OrElse String.IsNullOrEmpty(_logPath) Then
+    '            InitializeLogFile()
+    '        End If
+    '        If String.IsNullOrEmpty(_logPath) Then Exit Sub
 
-            Dim line As String = String.Format("{0:yyyy-MM-dd HH:mm:ss.fff}  {1}", DateTime.Now, msg)
+    '        Dim line As String = String.Format("{0:yyyy-MM-dd HH:mm:ss.fff}  {1}", DateTime.Now, msg)
 
-            SyncLock _logLock
-                IO.File.AppendAllText(_logPath, line & Environment.NewLine)
-                If Not String.IsNullOrEmpty(stackTrace) Then
-                    IO.File.AppendAllText(_logPath, "    Stack: " & stackTrace & Environment.NewLine)
-                End If
-            End SyncLock
-        Catch
-            ' Never throw from logging
-        End Try
-    End Sub 'Status
+    '        SyncLock _logLock
+    '            IO.File.AppendAllText(_logPath, line & Environment.NewLine)
+    '            If Not String.IsNullOrEmpty(stackTrace) Then
+    '                IO.File.AppendAllText(_logPath, "    Stack: " & stackTrace & Environment.NewLine)
+    '            End If
+    '        End SyncLock
+    '    Catch
+    '        ' Never throw from logging
+    '    End Try
+    'End Sub 'Status
 
 
 
     ' Append 1 line to the status box (optionally colored for this line only).
-    Private Sub SetStatusUI(msg As String, Optional textColor As Color = Nothing)
-        Try
-            ' Move caret to end
-            RichTextBox_Status.SelectionStart = Len(RichTextBox_Status.Text)
-            RichTextBox_Status.SelectionLength = 0
+    'Private Sub SetStatusUI(msg As String, Optional textColor As Color = Nothing)
+    '    Try
+    '        ' Move caret to end
+    '        RichTextBox_Status.SelectionStart = Len(RichTextBox_Status.Text)
+    '        RichTextBox_Status.SelectionLength = 0
 
-            ' Choose color (default = black) for this insertion only
-            Dim useColor As Color = If(textColor.IsEmpty, Color.Black, textColor)
-            RichTextBox_Status.SelectionColor = useColor
+    '        ' Choose color (default = black) for this insertion only
+    '        Dim useColor As Color = If(textColor.IsEmpty, Color.Black, textColor)
+    '        RichTextBox_Status.SelectionColor = useColor
 
-            ' Prepend a newline like before, then append text
-            RichTextBox_Status.SelectedText = vbCrLf & msg
+    '        ' Prepend a newline like before, then append text
+    '        RichTextBox_Status.SelectedText = vbCrLf & msg
 
-            ' Reset selection color back to black for future appends
-            RichTextBox_Status.SelectionColor = Color.Black
+    '        ' Reset selection color back to black for future appends
+    '        RichTextBox_Status.SelectionColor = Color.Black
 
-            ' Scroll to bottom
-            RichTextBox_Status.SelectionStart = Len(RichTextBox_Status.Text)
-            RichTextBox_Status.ScrollToCaret()
-        Catch
-            ' UI is best-effort; ignore
-        End Try
-    End Sub
+    '        ' Scroll to bottom
+    '        RichTextBox_Status.SelectionStart = Len(RichTextBox_Status.Text)
+    '        RichTextBox_Status.ScrollToCaret()
+    '    Catch
+    '        ' UI is best-effort; ignore
+    '    End Try
+    'End Sub
 
 
 
@@ -723,51 +702,51 @@ Press OK to run, or Cancel to abort."
 
 
     ' 1b) Public, static-like entry point for background threads
-    Public Sub StatusFromAnyThread(text As String, Optional stackTrace As String = Nothing,
-                  Optional textColor As Color = Nothing)
-        Dim f As Form1 =
-            Application.OpenForms.OfType(Of Form1)().FirstOrDefault()
+    'Public Sub StatusFromAnyThread(text As String, Optional stackTrace As String = Nothing,
+    '              Optional textColor As Color = Nothing)
+    '    Dim f As Form1 =
+    '        Application.OpenForms.OfType(Of Form1)().FirstOrDefault()
 
-        If f Is Nothing OrElse f.IsDisposed Then Return
-        f.InvokeIfRequired(Sub() f.Status(text, stackTrace, textColor))   ' calls your existing instance Status()
-    End Sub
+    '    If f Is Nothing OrElse f.IsDisposed Then Return
+    '    f.InvokeIfRequired(Sub() f.Status(text, stackTrace, textColor))   ' calls your existing instance Status()
+    'End Sub
 
 End Class
 
 
 
 ' 1a) Tiny helper to marshal to UI
-Module ControlInvokeExtensions
-    <Extension()>
-    Public Sub InvokeIfRequired(ctrl As Control, action As Action)
-        If ctrl Is Nothing OrElse ctrl.IsDisposed Then Return
+'Module ControlInvokeExtensions
+'    <Extension()>
+'    Public Sub InvokeIfRequired(ctrl As Control, action As Action)
+'        If ctrl Is Nothing OrElse ctrl.IsDisposed Then Return
 
-        If ctrl.IsHandleCreated Then
-            If ctrl.InvokeRequired Then
-                Try
-                    ctrl.BeginInvoke(action)
-                Catch
-                    ' Control is closing—ignore.
-                End Try
-            Else
-                action()
-            End If
-        Else
-            ' Wait until the handle is created, then run once.
-            Dim h As EventHandler = Nothing
-            h = Sub(sender As Object, e As EventArgs)
-                    RemoveHandler ctrl.HandleCreated, h
-                    If ctrl.IsDisposed Then Return
-                    Try
-                        ctrl.BeginInvoke(action)
-                    Catch
-                        ' Control is closing—ignore.
-                    End Try
-                End Sub
-            AddHandler ctrl.HandleCreated, h
-        End If
-    End Sub
-End Module
+'        If ctrl.IsHandleCreated Then
+'            If ctrl.InvokeRequired Then
+'                Try
+'                    ctrl.BeginInvoke(action)
+'                Catch
+'                    ' Control is closing—ignore.
+'                End Try
+'            Else
+'                action()
+'            End If
+'        Else
+'            ' Wait until the handle is created, then run once.
+'            Dim h As EventHandler = Nothing
+'            h = Sub(sender As Object, e As EventArgs)
+'                    RemoveHandler ctrl.HandleCreated, h
+'                    If ctrl.IsDisposed Then Return
+'                    Try
+'                        ctrl.BeginInvoke(action)
+'                    Catch
+'                        ' Control is closing—ignore.
+'                    End Try
+'                End Sub
+'            AddHandler ctrl.HandleCreated, h
+'        End If
+'    End Sub
+'End Module
 
 
 

@@ -14,8 +14,9 @@ Public Class PecReader
     Private Const MAX_ICON_H As Integer = 4096
     Private Const MAX_GRAPHIC_BYTES As Integer = 4 * 1024 * 1024     ' 4MB cap per color graphic
     Private Const MAX_STITCH_ITERS As Integer = 50 * 1024 * 1024      ' hard loop limiter
-
-    Public Overrides Sub Read()
+    Private _fileName As String = ""
+    Public Overrides Sub Read(fn As String)
+        _fileName = fn
         Try
             ' Some callers (e.g., PES) position the stream at the PEC header ("#PEC0001"),
             ' others position at the PEC payload just after it. Peek to decide.
@@ -39,7 +40,7 @@ Public Class PecReader
             ReadPecCore()
 
         Catch ex As Exception
-            Try : Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString) : Catch : End Try
+            Try : Logger.Error("PecReader: error in file: " & _fileName & " - " & ex.Message, ex.StackTrace.ToString) : Catch : End Try
             Try : pattern.end() : Catch : End Try
         End Try
     End Sub

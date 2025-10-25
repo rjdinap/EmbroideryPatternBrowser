@@ -5,8 +5,9 @@
     Private Const MAX_COLORS As Integer = 4096
     Private Const MAX_STITCH_BYTES As Integer = 128 * 1024 * 1024 ' 128MB decode guard
     Private Const MAX_LOOP_ITERS As Integer = 50 * 1024 * 1024     ' hard loop limiter
-
-    Public Overrides Sub Read()
+    Private _fileName As String = ""
+    Public Overrides Sub Read(fn As String)
+        _fileName = fn
         Try
             Dim jefThreads As EmbThread() = EmbThreadJef.GetThreadSet()
             If jefThreads Is Nothing OrElse jefThreads.Length = 0 Then
@@ -42,7 +43,7 @@
             ' --- Validate stitchOffset and seek safely ---
             Dim fileLen As Long = If(reader IsNot Nothing AndAlso reader.BaseStream IsNot Nothing, reader.BaseStream.Length, 0L)
             If stitchOffset < 0 OrElse stitchOffset > fileLen Then
-                Form1.StatusFromAnyThread("Error: Invalid JEF stitch offset.")
+                Logger.Error("JefReader: error in file: " & _fileName & " - Invalid JEF stitch offset.")
                 pattern.end()
                 Return
             End If
@@ -51,7 +52,7 @@
             ReadJefStitchesSafe(fileLen)
 
         Catch ex As Exception
-            Try : Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString) : Catch : End Try
+            Try : Logger.Error("JefReader: error in file: " & _fileName & " - " & ex.Message, ex.StackTrace.ToString) : Catch : End Try
             Try : pattern.end() : Catch : End Try
         End Try
     End Sub
@@ -66,7 +67,7 @@
 
         While True
             If loopIters >= MAX_LOOP_ITERS Then
-                Form1.StatusFromAnyThread("Error: JEF decode iteration limit reached.")
+                Logger.Error("JefReader: error in file: " & _fileName & " - JEF decode iteration limit reached.")
                 Exit While
             End If
             loopIters += 1
@@ -77,13 +78,13 @@
 
             ' Progress guard
             If reader.BaseStream.Position = lastPos Then
-                Form1.StatusFromAnyThread("Error: No progress while reading JEF stream.")
+                Logger.Error("JefReader: error in file: " & _fileName & " - No progress while reading JEF stream.")
                 Exit While
             End If
             lastPos = reader.BaseStream.Position
 
             If bytesRead > MAX_STITCH_BYTES Then
-                Form1.StatusFromAnyThread("Error: JEF stitch data exceeds maximum size.")
+                Logger.Error("JefReader: error in file: " & _fileName & " - JEF stitch data exceeds maximum size.")
                 Exit While
             End If
 

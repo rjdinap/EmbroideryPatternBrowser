@@ -1,8 +1,11 @@
 ﻿Public Class ExpReader
     Inherits EmbReader
 
-    Public Overrides Sub Read()
-        EnsureDefaultPalette()       ' <-- add this line
+    Private _fileName As String = ""
+
+    Public Overrides Sub Read(fn As String)
+        _fileName = fn
+        EnsureDefaultPalette()
         pattern.select_thread(0)     ' start on first color (safe even if already 0)
         ReadExpStitches(Me)
     End Sub

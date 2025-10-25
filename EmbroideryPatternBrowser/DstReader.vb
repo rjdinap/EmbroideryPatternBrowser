@@ -11,13 +11,15 @@ Public Class DstReader
     Private Const MAX_STITCH_COMMANDS As Integer = 5_000_000  ' ~5M tri-bytes ~ 15MB stream; plenty for real DSTs
     Private Const MAX_COLOR_ENTRIES As Integer = 1024         ' guard TC: lines
     Private Const MAX_LABEL_LEN As Integer = 256              ' LA and other text fields
+    Private _fileName As String = ""
 
-    Public Overrides Sub Read()
+    Public Overrides Sub Read(fn As String)
+        _fileName = fn
         Try
             DstReadHeader()
             DstReadStitches()
         Catch ex As Exception
-            Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
+            Logger.Debug("DstReader: error in file: " & _fileName & " - " & ex.Message, ex.StackTrace.ToString)
             Throw
         End Try
     End Sub
@@ -118,7 +120,7 @@ Public Class DstReader
 
             commandsRead += 1
             If commandsRead > MAX_STITCH_COMMANDS Then
-                Form1.StatusFromAnyThread("Error: Too many stitch commands; file may be corrupt.")
+                Logger.Debug("DstReader: error in filename:" & _fileName & " - Too many stitch commands; file may be corrupt.")
                 Exit While
             End If
 

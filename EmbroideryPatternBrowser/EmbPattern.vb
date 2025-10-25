@@ -252,7 +252,7 @@ Public Class EmbPattern
         Catch ex As Exception
             ' Project-wide policy: log succinct error to the UI; avoid stack traces here.
             Try
-                Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace.ToString)
+                Logger.Error("EmbPattern:  error: " & ex.Message, ex.StackTrace.ToString)
             Catch
                 ' ignore secondary failures
             End Try
@@ -294,32 +294,7 @@ Public Class EmbPattern
         Return Color.Black
     End Function
 
-    ' Use decoded indices when available; otherwise synthesize contiguous blocks by color count.
-    'Private Function BuildRenderColorIndices() As Integer()
-    '    If Stitches.Count = 0 Then Return New Integer() {}
 
-    '    If StitchThreadIndices.Count = Stitches.Count Then
-    '        Dim distinctCount = StitchThreadIndices.Distinct().Count()
-    '        If distinctCount > 1 OrElse ThreadList.Count <= 1 Then
-    '            Return StitchThreadIndices.ToArray()
-    '        End If
-    '        ' fall through to synthetic if only one index but multiple threads
-    '    End If
-
-    '    Dim result(Stitches.Count - 1) As Integer
-    '    If ThreadList.Count <= 1 Then Return result
-
-    '    Dim colors As Integer = ThreadList.Count
-    '    Dim baseBlock As Integer = Math.Max(1, Stitches.Count \ colors)
-    '    For colorIdx As Integer = 0 To colors - 1
-    '        Dim start As Integer = colorIdx * baseBlock
-    '        Dim [end] As Integer = If(colorIdx = colors - 1, Stitches.Count, Math.Min(Stitches.Count, start + baseBlock))
-    '        For i As Integer = start To [end] - 1
-    '            result(i) = colorIdx
-    '        Next
-    '    Next
-    '    Return result
-    'End Function
 
     ' Use decoded indices when available; otherwise synthesize contiguous blocks by color count.
     Private Function BuildRenderColorIndices() As Integer()

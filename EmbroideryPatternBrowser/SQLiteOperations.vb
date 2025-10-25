@@ -55,7 +55,7 @@ Module SQLiteOperations
             Form1.databaseName = dbFilePath
             Form1.TextBox_Database.Text = Form1.databaseName
         Catch ex As Exception
-            Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace)
+            Logger.Error(ex.Message, ex.StackTrace)
         End Try
 
         Dim created As Boolean = False
@@ -64,17 +64,17 @@ Module SQLiteOperations
                 SQLiteConnection.CreateFile(_dbPath)
                 created = True
             Catch ex As Exception
-                Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace)
+                Logger.Error(ex.Message, ex.StackTrace)
                 Throw
             End Try
         End If
 
         Using conn As SQLiteConnection = OpenConnection(dbFilePath, enableWal, aggressivePragmas, created)
-            Form1.StatusFromAnyThread($"Open: conn.Open in {sw.ElapsedMilliseconds} ms")
+            Logger.Debug($"Open: conn.Open in {sw.ElapsedMilliseconds} ms")
             EnsureFts5Available(conn)
-            Form1.StatusFromAnyThread($"Open: FTS5 probe in {sw.ElapsedMilliseconds} ms total")
+            Logger.Debug($"Open: FTS5 probe in {sw.ElapsedMilliseconds} ms total")
             CreateSchema(conn, created)
-            Form1.StatusFromAnyThread($"Open: schema check in {sw.ElapsedMilliseconds} ms total")
+            Logger.Debug($"Open: schema check in {sw.ElapsedMilliseconds} ms total")
         End Using
 
         _stopRequested = False
@@ -97,7 +97,7 @@ Module SQLiteOperations
             Form1.databaseName = "No Database Opened."
             Form1.TextBox_Database.Text = Form1.databaseName
         Catch ex As Exception
-            Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace)
+            Logger.Error(ex.Message, ex.StackTrace)
         End Try
 
         If Not _started Then Return
@@ -117,7 +117,7 @@ Module SQLiteOperations
             End Using
         Catch
         End Try
-        Form1.StatusFromAnyThread("Database closed. Index writer stopped.")
+        Logger.Info("Database closed. Index writer stopped.")
     End Sub
 
 
@@ -164,7 +164,7 @@ Module SQLiteOperations
                 End Using
             End Using
         Catch ex As Exception
-            Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace)
+            Logger.Error(ex.Message, ex.StackTrace)
             MsgBox("SQLite search error: " & ex.Message, MsgBoxStyle.Exclamation, "SQLite Search")
         End Try
         Return dt
@@ -183,7 +183,7 @@ Module SQLiteOperations
                 End Using
             End Using
         Catch ex As Exception
-            Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace)
+            Logger.Error(ex.Message, ex.StackTrace)
         End Try
         Return 0
     End Function
@@ -233,7 +233,7 @@ ON CONFLICT(fullpath) DO UPDATE SET
 
             Return True
         Catch ex As Exception
-            Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace)
+            Logger.Error(ex.Message, ex.StackTrace)
             MsgBox("SQLite metadata update error: " & ex.Message, MsgBoxStyle.Exclamation, "SQLite")
             Return False
         End Try
@@ -313,7 +313,7 @@ END;"
                 End Using
             End Using
         Catch ex As Exception
-            Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace)
+            Logger.Error(ex.Message, ex.StackTrace)
         End Try
 
         If Not hasFts5 Then
@@ -323,7 +323,7 @@ END;"
                 End Using
                 hasFts5 = True
             Catch ex As Exception
-                Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace)
+                Logger.Error(ex.Message, ex.StackTrace)
                 Throw New InvalidOperationException(
                     "This SQLite build does not include FTS5 (no such module: fts5). " &
                     "Install System.Data.SQLite with ENABLE_FTS5 and match x86/x64.", ex)
@@ -394,7 +394,7 @@ END;"
             Try
                 cmd.ExecuteNonQuery()
             Catch ex As Exception
-                Form1.StatusFromAnyThread("Error: PRAGMA " & name & "=" & value & " failed: " & ex.Message, ex.StackTrace)
+                Logger.Error(" PRAGMA " & name & "=" & value & " failed: " & ex.Message, ex.StackTrace)
             End Try
         End Using
     End Sub
@@ -666,16 +666,16 @@ ON CONFLICT(fullpath) DO UPDATE SET
                 End If
             End Using
 
-            Form1.StatusFromAnyThread("FTS rebuild complete.")
+            Logger.Info("FTS rebuild complete.")
         Catch ex As Exception
-            Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace)
+            Logger.Error(ex.Message, ex.StackTrace)
             MsgBox("RebuildIndex error: " & ex.Message, MsgBoxStyle.Critical, "SQLite")
         Finally
             If wasRunning Then
                 Try
                     InitializeSQLite(_dbPath)
                 Catch ex As Exception
-                    Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace)
+                    Logger.Error(ex.Message, ex.StackTrace)
                 End Try
             End If
             StatusProgress.ClosePopup()
@@ -686,13 +686,13 @@ ON CONFLICT(fullpath) DO UPDATE SET
 
     Public Sub OptimizeIndex()
         If String.IsNullOrWhiteSpace(_dbPath) Then
-            Form1.StatusFromAnyThread("Error: No database opened for optimization.")
+            Logger.Error("Error: No database opened for optimization.")
             Exit Sub
         End If
 
         ' Re-entry guard
         If Threading.Interlocked.Exchange(_maintenanceRunning, 1) = 1 Then
-            Form1.StatusFromAnyThread("An optimization/maintenance task is already running.")
+            Logger.Info("An optimization/maintenance task is already running.")
             Exit Sub
         End If
 
@@ -711,9 +711,9 @@ ON CONFLICT(fullpath) DO UPDATE SET
                                  cmd.ExecuteNonQuery()
                              End Using
                          End Using
-                         Form1.StatusFromAnyThread("FTS index optimized.")
+                         Logger.Info("FTS index optimized.")
                      Catch ex As Exception
-                         Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace)
+                         Logger.Error(ex.Message, ex.StackTrace)
                          MsgBox("OptimizeIndex error: " & ex.Message, MsgBoxStyle.Exclamation, "SQLite")
                      Finally
                          ' Close the popup and clear the guard, from any thread

@@ -1,7 +1,10 @@
 ﻿Public Class VipReader
     Inherits EmbReader
 
-    Public Overrides Sub Read()
+    Private _fileName As String = ""
+
+    Public Overrides Sub Read(fn As String)
+        _fileName = fn
         ' ---- VIP header (little-endian) ----
         Dim magic As Integer = ReadInt32LE()            ' expected 0x0190FC5D (not enforced)
         Dim number_of_stitches As Integer = ReadInt32LE()
@@ -75,7 +78,7 @@
 
         ' ---- seek to command stream start (if invalid offsets, stop cleanly like HusReader) ----
         If Not offsetsValid Then
-            Try : Form1.StatusFromAnyThread("Error: VIP offsets invalid; skipping stitches.") : Catch : End Try
+            Try : Logger.Error("VipReader: error in file:" & _fileName & " - VIP offsets invalid; skipping stitches.") : Catch : End Try
             pattern.end() : Return
         End If
         Seek(command_offset)

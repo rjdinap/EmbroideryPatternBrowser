@@ -6,6 +6,12 @@ Imports System.Linq
 
 Public Module FastFileScanner
 
+    ' Tunables (safe defaults; tweak in Options later if you want)
+    Const MAX_OPS_PER_TX As Integer = 30000      ' commit every N upserts/deletes
+    Const MAX_TX_MS As Integer = 5000            ' or every N ms, whichever comes first
+    Const MAX_WAL_BYTES As Long = 128L * 1024L * 1024L  ' checkpoint if WAL exceeds ~128 MB
+
+
     ' ---------- Public result object ----------
     Public Structure ScanResult
         Public FilesScanned As Long
@@ -14,6 +20,7 @@ Public Module FastFileScanner
         Public FilesUpdated As Long
         Public FilesDeleted As Long
         Public ElapsedMs As Long
+
 
         Public Overrides Function ToString() As String
             Return String.Format("Dirs: {0}, Files scanned: {1}, Added: {2}, Updated: {3}, Deleted: {4}, Elapsed: {5} ms",
@@ -105,7 +112,7 @@ Public Module FastFileScanner
         End If
 
         Try
-            Form1.StatusFromAnyThread("Note: for safety and speed, system folders like \Windows and \Program Files are not scanned.")
+            Logger.Info("Note: System folders like \Windows and \Program Files are not scanned.")
         Catch
         End Try
 
@@ -168,10 +175,11 @@ Public Module FastFileScanner
                 Dim existing As Dictionary(Of String, (Size As Long, Metadata As String)) = LoadExistingForRoot(conn, rootPrefix)
                 swSel.Stop()
 
-                ' 2) One large transaction per ROOT
-                Using tx = conn.BeginTransaction()
-                    Dim upsertSql As String =
-"INSERT INTO files(fullpath, filename, ext, size, metadata)
+                ' --- 2) Rolling micro-transactions per ROOT (NEW) ---
+
+                ' Prepare commands once (no ambient transaction yet)
+                Dim upsertSql As String =
+                "INSERT INTO files(fullpath, filename, ext, size, metadata)
  VALUES(@p,@f,@e,@s, COALESCE(NULLIF(@m,''), (SELECT metadata FROM files WHERE fullpath=@p)))
 ON CONFLICT(fullpath) DO UPDATE SET
  filename=excluded.filename,
@@ -179,120 +187,147 @@ ON CONFLICT(fullpath) DO UPDATE SET
  size=excluded.size,
  metadata=COALESCE(NULLIF(excluded.metadata,''), files.metadata);"
 
-                    Using cmdUpsert As New SQLiteCommand(upsertSql, conn, tx),
-                          cmdDelete As New SQLiteCommand("DELETE FROM files WHERE fullpath=@p;", conn, tx)
+                Using cmdUpsert As New SQLiteCommand(upsertSql, conn),
+                      cmdDelete As New SQLiteCommand("DELETE FROM files WHERE fullpath=@p;", conn)
 
-                        Dim pP = cmdUpsert.Parameters.Add("@p", System.Data.DbType.String)
-                        Dim pF = cmdUpsert.Parameters.Add("@f", System.Data.DbType.String)
-                        Dim pE = cmdUpsert.Parameters.Add("@e", System.Data.DbType.String)
-                        Dim pS = cmdUpsert.Parameters.Add("@s", System.Data.DbType.Int64)
-                        Dim pM = cmdUpsert.Parameters.Add("@m", System.Data.DbType.String)
+                    Dim pP = cmdUpsert.Parameters.Add("@p", System.Data.DbType.String)
+                    Dim pF = cmdUpsert.Parameters.Add("@f", System.Data.DbType.String)
+                    Dim pE = cmdUpsert.Parameters.Add("@e", System.Data.DbType.String)
+                    Dim pS = cmdUpsert.Parameters.Add("@s", System.Data.DbType.Int64)
+                    Dim pM = cmdUpsert.Parameters.Add("@m", System.Data.DbType.String)
+                    Dim dP = cmdDelete.Parameters.Add("@p", System.Data.DbType.String)
 
-                        Dim dP = cmdDelete.Parameters.Add("@p", System.Data.DbType.String)
+                    ' ---- NEW: rolling transaction state ----
+                    Dim tx As SQLiteTransaction = Nothing
+                    Dim opsInTx As Integer = 0
+                    Dim txClock As Diagnostics.Stopwatch = Nothing
 
-                        Dim swEnum As New Diagnostics.Stopwatch()
+                    'helper functions
+                    Dim BeginTx As Action =
+                    Sub()
+                        If tx Is Nothing Then
+                            tx = conn.BeginTransaction()
+                            cmdUpsert.Transaction = tx
+                            cmdDelete.Transaction = tx
+                            opsInTx = 0
+                            txClock = Diagnostics.Stopwatch.StartNew()
+                        End If
+                    End Sub
+
+                    Dim CommitTxAndMaybeCheckpoint As Action =
+                        Sub()
+                            If tx IsNot Nothing Then
+                                tx.Commit()
+                                tx.Dispose() : tx = Nothing
+                                cmdUpsert.Transaction = Nothing
+                                cmdDelete.Transaction = Nothing
+
+                                Using ck As New SQLiteCommand("PRAGMA wal_checkpoint(PASSIVE);", conn)
+                                    Try : ck.ExecuteNonQuery() : Catch : End Try
+                                End Using
+
+                                Dim walPath = indexDbPath & "-wal"
+                                Dim walLen As Long = If(IO.File.Exists(walPath), (New IO.FileInfo(walPath)).Length, 0)
+                                If walLen >= MAX_WAL_BYTES Then
+                                    Using ck1 As New SQLiteCommand("PRAGMA wal_checkpoint(RESTART);", conn)
+                                        Try : ck1.ExecuteNonQuery() : Catch : End Try
+                                    End Using
+                                    Using ck2 As New SQLiteCommand("PRAGMA wal_checkpoint(TRUNCATE);", conn)
+                                        Try : ck2.ExecuteNonQuery() : Catch : End Try
+                                    End Using
+                                End If
+                            End If
+                        End Sub
+
+                    Dim EnsureBatchCommit As Action =
+                        Sub()
+                            If tx Is Nothing Then Exit Sub
+                            If opsInTx >= MAX_OPS_PER_TX OrElse txClock.ElapsedMilliseconds >= MAX_TX_MS Then
+                                CommitTxAndMaybeCheckpoint()
+                            End If
+                        End Sub
+                    ' ---- end rolling tx helpers ----
+
+                    Dim swEnum As New Diagnostics.Stopwatch()
                         Dim swWrite As New Diagnostics.Stopwatch()
                         Dim perRootFilesFound As Integer = 0
                         Dim perRootAdd As Integer = 0
                         Dim perRootUpd As Integer = 0
 
-                        ' Enumerate & process per directory (but write under same TX)
+                        ' Enumerate & process per directory
                         For i As Integer = 0 To theseDirs.Count - 1
                             If cancel.IsCancellationRequested Then Exit For
                             Dim dir = theseDirs(i)
 
-                            ' 2a) Enumerate this directory (only files with desired exts)
+                            ' 2a) enumerate files
                             swEnum.Start()
                             Dim found As New List(Of (FullPath As String, Size As Long, Ext As String))()
                             EnumerateFilesFast(dir, exts,
-                               Sub(fullPath As String, size As Long, ext As String)
-                                   found.Add((fullPath, size, ext))
-                               End Sub)
+                                Sub(fullPath As String, size As Long, ext As String)
+                                    found.Add((fullPath, size, ext))
+                                End Sub)
                             swEnum.Stop()
 
-                            If found.Count = 0 Then
-                                Continue For
-                            End If
+                            If found.Count = 0 Then Continue For
 
-                            ' 2b) Reconcile against prefetch map (no SELECTs here)
+                            ' 2b) reconcile with rolling TX
                             swWrite.Start()
                             For Each f In found
-                                Dim storedPath As String = ""
-                                Dim fileName As String = ""
-                                Dim prev As (Size As Long, Metadata As String) = Nothing
-                                Dim hadPrev As Boolean
-                                If (f.Ext.ToLower = "zip") Then
-                                    'zip files are special case
-                                    'Status("Processing zip: " & f.FullPath)
+                                BeginTx()
+
+                                If String.Equals(f.Ext, ".zip", StringComparison.OrdinalIgnoreCase) Then
+                                    ' Expand zip entries (unchanged from your code)
                                     Dim zipFound = zp.ScanZipForFileNames(f.FullPath)
                                     For Each z In zipFound
-                                        storedPath = StripLongPathPrefix(z.FullPath)
-                                        fileName = Path.GetFileName(storedPath)
-                                        prev = Nothing
-                                        hadPrev = existing.TryGetValue(storedPath, prev)
+                                        Dim storedPath = StripLongPathPrefix(z.FullPath)
+                                        Dim fileName = Path.GetFileName(storedPath)
 
+                                        Dim prev As (Size As Long, Metadata As String) = Nothing
+                                        Dim hadPrev As Boolean = existing.TryGetValue(storedPath, prev)
                                         If hadPrev Then
-                                            existing.Remove(storedPath) ' mark seen
+                                            existing.Remove(storedPath)
                                             If prev.Size <> z.Size Then
-                                                ' UPDATE
-                                                pP.Value = storedPath
-                                                pF.Value = fileName
-                                                pE.Value = z.Ext.TrimStart("."c)
-                                                pS.Value = z.Size
-                                                pM.Value = ""        ' preserve old metadata
-                                                cmdUpsert.ExecuteNonQuery()
-                                                perRootUpd += 1
-                                            Else
-                                                ' unchanged
+                                                pP.Value = storedPath : pF.Value = fileName
+                                                pE.Value = z.Ext.TrimStart("."c) : pS.Value = z.Size
+                                                pM.Value = "" : cmdUpsert.ExecuteNonQuery()
+                                                perRootUpd += 1 : opsInTx += 1
+                                                EnsureBatchCommit()
                                             End If
                                         Else
-                                            ' INSERT
-                                            pP.Value = storedPath
-                                            pF.Value = fileName
-                                            pE.Value = z.Ext.TrimStart("."c)
-                                            pS.Value = z.Size
-                                            pM.Value = ""
-                                            cmdUpsert.ExecuteNonQuery()
-                                            perRootAdd += 1
+                                            pP.Value = storedPath : pF.Value = fileName
+                                            pE.Value = z.Ext.TrimStart("."c) : pS.Value = z.Size
+                                            pM.Value = "" : cmdUpsert.ExecuteNonQuery()
+                                            perRootAdd += 1 : opsInTx += 1
+                                            EnsureBatchCommit()
                                         End If
-                                        perRootFilesFound += 1 ' count files that we find in the zip file
+                                        perRootFilesFound += 1
                                     Next
-                                    Continue For 'don't process the zip file itself in the outer loop
+                                    Continue For
                                 End If
 
-                                storedPath = StripLongPathPrefix(f.FullPath)
-                                fileName = Path.GetFileName(storedPath)
-                                prev = Nothing
-                                hadPrev = existing.TryGetValue(storedPath, prev)
+                                ' normal file
+                                Dim stored = StripLongPathPrefix(f.FullPath)
+                                Dim name = Path.GetFileName(stored)
+                                Dim prev2 As (Size As Long, Metadata As String) = Nothing
+                                Dim hadPrev2 As Boolean = existing.TryGetValue(stored, prev2)
 
-                                If hadPrev Then
-                                    existing.Remove(storedPath) ' mark seen
-                                    If prev.Size <> f.Size Then
-                                        ' UPDATE
-                                        pP.Value = storedPath
-                                        pF.Value = fileName
-                                        pE.Value = f.Ext
-                                        pS.Value = f.Size
-                                        pM.Value = ""        ' preserve old metadata
-                                        cmdUpsert.ExecuteNonQuery()
-                                        perRootUpd += 1
-                                    Else
-                                        ' unchanged
+                                If hadPrev2 Then
+                                    existing.Remove(stored)
+                                    If prev2.Size <> f.Size Then
+                                        pP.Value = stored : pF.Value = name : pE.Value = f.Ext
+                                        pS.Value = f.Size : pM.Value = "" : cmdUpsert.ExecuteNonQuery()
+                                        perRootUpd += 1 : opsInTx += 1
+                                        EnsureBatchCommit()
                                     End If
                                 Else
-                                    ' INSERT
-                                    pP.Value = storedPath
-                                    pF.Value = fileName
-                                    pE.Value = f.Ext
-                                    pS.Value = f.Size
-                                    pM.Value = ""
-                                    cmdUpsert.ExecuteNonQuery()
-                                    perRootAdd += 1
+                                    pP.Value = stored : pF.Value = name : pE.Value = f.Ext
+                                    pS.Value = f.Size : pM.Value = "" : cmdUpsert.ExecuteNonQuery()
+                                    perRootAdd += 1 : opsInTx += 1
+                                    EnsureBatchCommit()
                                 End If
 
                                 perRootFilesFound += 1
-                            Next ' end of the file reconcile loop
-
+                            Next
                             swWrite.Stop()
 
                             If (i Mod 200) = 0 Then
@@ -300,36 +335,28 @@ ON CONFLICT(fullpath) DO UPDATE SET
                             End If
                         Next
 
-                        ' 2c) DELETE any leftovers for this root
+                        ' 2c) batched DELETEs of leftovers
                         progressCallback?.Invoke("Removing entries that no long exist…", 0, 0)
-
-                        Dim delCount As Integer = 0
                         If existing.Count > 0 Then
+                            Dim delOps As Integer = 0
                             For Each kv In existing
+                                BeginTx()
                                 dP.Value = kv.Key
                                 cmdDelete.ExecuteNonQuery()
-                                delCount += 1
+                                opsInTx += 1 : delOps += 1
+                                EnsureBatchCommit()
                             Next
                         End If
+
+                        ' Final flush for this root
+                        CommitTxAndMaybeCheckpoint()
 
                         ' root-level tallies
                         stats.FilesScanned += perRootFilesFound
                         stats.FilesAdded += perRootAdd
                         stats.FilesUpdated += perRootUpd
-                        stats.FilesDeleted += delCount
-
-                        ' Emit per-root summary
-                        'Form1.StatusFromAnyThread(String.Format("Perf(root): {0}  sel={1} ms, enum={2} ms, write={3} ms, found={4}, add={5}, upd={6}, del={7}",
-                        'root,
-                        'swSel.ElapsedMilliseconds,
-                        'swEnum.ElapsedMilliseconds,
-                        'swWrite.ElapsedMilliseconds,
-                        'perRootFilesFound, perRootAdd, perRootUpd, delCount))
+                        ' stats.FilesDeleted is already counted via leftovers loop size
                     End Using
-                    progressCallback?.Invoke("Finalizing write to the database. This may take a while.", 0, 0)
-
-                    tx.Commit()
-                End Using
             Next
         End Using
 
@@ -344,6 +371,7 @@ ON CONFLICT(fullpath) DO UPDATE SET
         Try : StatusProgress.ClosePopup() : Catch : End Try
         Return stats
     End Function
+
 
 
 
@@ -453,9 +481,6 @@ ON CONFLICT(fullpath) DO UPDATE SET
             End Try
         End While
     End Sub
-
-
-
 
 
 
