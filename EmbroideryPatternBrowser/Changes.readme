@@ -9,19 +9,18 @@ prevent (or discourage) closing the app during a database rebuild or optimize
 
 add stitch viewer?
 
-
 update web site with new install information
 
 
+
+1.0.12	 - 
+
 1.0.11	- fix a bug with cancelling scan for images
 		- fix a bug with pes reading; few files were inverted
-		- mousewheel to make the iamge larger / smaller and click/drag to scroll the image
+		- mousewheel to make the image larger / smaller and click/drag to scroll the image
 		- added a small logging framework and refactored code for it
 		- removed all the previous optimization code. added a new optimize check that's fast
-		- fix a bug with metadata deletion and searching
-
-
-
+		- fix a nasty bug with metadata deletion and searching
 
 1.0.10	- Add Tools -> Maintenance stuff - check database health and optimize database
 		- by default, optimize database on exit is turned off for speed

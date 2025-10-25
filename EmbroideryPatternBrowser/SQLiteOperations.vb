@@ -272,6 +272,17 @@ Module SQLiteOperations
             cmd.ExecuteNonQuery()
         End Using
 
+        Using cmd As New SQLiteCommand(conn)
+            cmd.CommandText = "DROP TRIGGER IF EXISTS files_ai;"
+            cmd.ExecuteNonQuery()
+            cmd.CommandText = "DROP TRIGGER IF EXISTS files_au;"
+            cmd.ExecuteNonQuery()
+            cmd.CommandText = "DROP TRIGGER IF EXISTS files_ad;"
+            cmd.ExecuteNonQuery()
+        End Using
+
+
+
         ' Triggers mirror files -> files_fts
         Using cmd As New SQLiteCommand(conn)
             cmd.CommandText =
@@ -291,9 +302,16 @@ END;"
         End Using
 
         Using cmd As New SQLiteCommand(conn)
+            'cmd.CommandText =
+            '"CREATE TRIGGER IF NOT EXISTS files_au AFTER UPDATE ON files BEGIN
+            'INSERT INTO files_fts(files_fts, rowid, fullpath) VALUES('delete', old.rowid, old.fullpath);
+            'INSERT INTO files_fts(rowid, fullpath, filename, ext, metadata)
+            'VALUES (new.rowid, new.fullpath, new.filename, new.ext, new.metadata);
+            'End;"
             cmd.CommandText =
 "CREATE TRIGGER IF NOT EXISTS files_au AFTER UPDATE ON files BEGIN
-  INSERT INTO files_fts(files_fts, rowid, fullpath) VALUES('delete', old.rowid, old.fullpath);
+  INSERT INTO files_fts(files_fts, rowid, fullpath, filename, ext, metadata) 
+  VALUES('delete', old.rowid, old.fullpath, old.filename, old.ext, old.metadata);
   INSERT INTO files_fts(rowid, fullpath, filename, ext, metadata)
   VALUES (new.rowid, new.fullpath, new.filename, new.ext, new.metadata);
 END;"
@@ -301,7 +319,7 @@ END;"
         End Using
 
         ' Index for range scans
-        Using cmd As New SQLiteCommand("CREATE INDEX IF NOT EXISTS idx_files_fullpath ON files(fullpath);", conn)
+        Using cmd As New SQLiteCommand("CREATE INDEX If Not EXISTS idx_files_fullpath On files(fullpath);", conn)
             cmd.ExecuteNonQuery()
         End Using
     End Sub
@@ -327,14 +345,14 @@ END;"
 
         If Not hasFts5 Then
             Try
-                Using cmd As New SQLiteCommand("CREATE VIRTUAL TABLE temp._fts5probe USING fts5(x); DROP TABLE temp._fts5probe;", conn)
+                Using cmd As New SQLiteCommand("CREATE VIRTUAL TABLE temp._fts5probe Using fts5(x); DROP TABLE temp._fts5probe;", conn)
                     cmd.ExecuteNonQuery()
                 End Using
                 hasFts5 = True
             Catch ex As Exception
                 Logger.Error(ex.Message, ex.StackTrace)
                 Throw New InvalidOperationException(
-                    "This SQLite build does not include FTS5 (no such module: fts5). " &
+                    "This SQLite build does Not include FTS5 (no such Module: fts5). " &
                     "Install System.Data.SQLite with ENABLE_FTS5 and match x86/x64.", ex)
             End Try
         End If
@@ -834,8 +852,6 @@ ON CONFLICT(fullpath) DO UPDATE SET
             Logger.Error("MarkOptimized error: " & ex.Message, ex.ToString())
         End Try
     End Sub
-
-
 
 
 
