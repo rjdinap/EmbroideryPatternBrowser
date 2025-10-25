@@ -94,7 +94,7 @@ Module SQLiteOperations
 
     Public Sub StopInsertThread()
         Try
-            Form1.databaseName = "No Collection Opened."
+            Form1.databaseName = "No Database Opened."
             Form1.TextBox_Database.Text = Form1.databaseName
         Catch ex As Exception
             Form1.StatusFromAnyThread("Error: " & ex.Message, ex.StackTrace)
@@ -108,6 +108,15 @@ Module SQLiteOperations
             _insertThread = Nothing
         End If
         _started = False
+        Try
+            Using conn As New SQLiteConnection(BuildConnStr())
+                conn.Open()
+                Using ck As New SQLiteCommand("PRAGMA wal_checkpoint(TRUNCATE);", conn)
+                    ck.ExecuteNonQuery()
+                End Using
+            End Using
+        Catch
+        End Try
         Form1.StatusFromAnyThread("Database closed. Index writer stopped.")
     End Sub
 
@@ -333,15 +342,52 @@ END;"
         ExecPragma(conn, "busy_timeout", _busyTimeoutMs.ToString())
         If enableWal Then
             ExecPragma(conn, "journal_mode", "WAL")
-            ExecPragma(conn, "wal_autocheckpoint", "10000")
+            ExecPragma(conn, "wal_autocheckpoint", "25600") ' bumped from 10000
         End If
         ExecPragma(conn, "synchronous", "NORMAL")
+
+        'check for large wal file and clean it
+        Dim walPath = _dbPath & "-wal"
+        If IO.File.Exists(walPath) AndAlso (New IO.FileInfo(walPath)).Length > (200L * 1024 * 1024) Then
+            Using ck As New SQLiteCommand("PRAGMA wal_checkpoint(RESTART); PRAGMA wal_checkpoint(TRUNCATE);", conn)
+                ck.ExecuteNonQuery()
+            End Using
+        Else
+            Using ck As New SQLiteCommand("PRAGMA wal_checkpoint(PASSIVE);", conn)
+                ck.ExecuteNonQuery()
+            End Using
+        End If
+
+
         If aggressivePragmas Then
             ExecPragma(conn, "temp_store", "MEMORY")
             If created Then ExecPragma(conn, "page_size", "4096")
         End If
         Return conn
     End Function
+
+
+
+    'checkpoint the wal file occasionally
+    Private Sub MaybeCheckpointBySize(conn As SQLiteConnection, maxBytes As Long)
+        Dim walPath = _dbPath & "-wal"
+        Dim len As Long = 0
+        If IO.File.Exists(walPath) Then len = (New IO.FileInfo(walPath)).Length
+        If len >= maxBytes Then
+            Using ck As New SQLiteCommand("PRAGMA wal_checkpoint(RESTART);", conn)
+                ck.ExecuteNonQuery()
+            End Using
+            Using ck2 As New SQLiteCommand("PRAGMA wal_checkpoint(TRUNCATE);", conn)
+                ck2.ExecuteNonQuery()
+            End Using
+        Else
+            Using ck As New SQLiteCommand("PRAGMA wal_checkpoint(PASSIVE);", conn)
+                ck.ExecuteNonQuery()
+            End Using
+        End If
+    End Sub
+
+
 
     Private Sub ExecPragma(conn As SQLiteConnection, name As String, value As String)
         Using cmd As New SQLiteCommand("PRAGMA " & name & "=" & value & ";", conn)
@@ -406,6 +452,7 @@ ON CONFLICT(fullpath) DO UPDATE SET
                             Next
                             tx.Commit()
                             cmdIns.Transaction = Nothing
+                            MaybeCheckpointBySize(conn, 100L * 1024 * 1024)  ' 100 MB cap
                         End Using
                     ElseIf _stopRequested Then
                         Exit While

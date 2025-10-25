@@ -77,13 +77,6 @@ Public Module FastFileScanner
     End Function
 
 
-    ' Set once at startup: FastFileScanner.ReportStatus = AddressOf Form1.Status
-    'Public WriteOnly Property ReportStatus As Action(Of String)
-    '   Set(value As Action(Of String))
-    '      _reportStatus = value
-    'End Set
-    'End Property
-    'Private _reportStatus As Action(Of String)
 
 
     ' ---------- Public scan entry point ----------
@@ -308,6 +301,8 @@ ON CONFLICT(fullpath) DO UPDATE SET
                         Next
 
                         ' 2c) DELETE any leftovers for this root
+                        progressCallback?.Invoke("Removing entries that no long exist…", 0, 0)
+
                         Dim delCount As Integer = 0
                         If existing.Count > 0 Then
                             For Each kv In existing
@@ -324,13 +319,14 @@ ON CONFLICT(fullpath) DO UPDATE SET
                         stats.FilesDeleted += delCount
 
                         ' Emit per-root summary
-                        Form1.StatusFromAnyThread(String.Format("Perf(root): {0}  sel={1} ms, enum={2} ms, write={3} ms, found={4}, add={5}, upd={6}, del={7}",
-                                                   root,
-                                                   swSel.ElapsedMilliseconds,
-                                                   swEnum.ElapsedMilliseconds,
-                                                   swWrite.ElapsedMilliseconds,
-                                                   perRootFilesFound, perRootAdd, perRootUpd, delCount))
+                        'Form1.StatusFromAnyThread(String.Format("Perf(root): {0}  sel={1} ms, enum={2} ms, write={3} ms, found={4}, add={5}, upd={6}, del={7}",
+                        'root,
+                        'swSel.ElapsedMilliseconds,
+                        'swEnum.ElapsedMilliseconds,
+                        'swWrite.ElapsedMilliseconds,
+                        'perRootFilesFound, perRootAdd, perRootUpd, delCount))
                     End Using
+                    progressCallback?.Invoke("Finalizing write to the database. This may take a while.", 0, 0)
 
                     tx.Commit()
                 End Using
@@ -342,12 +338,14 @@ ON CONFLICT(fullpath) DO UPDATE SET
         stats.ElapsedMs = swTotal.ElapsedMilliseconds
 
         ' Overall timing line
-        Form1.StatusFromAnyThread(String.Format("Timing: dirs={0} ms, reconcile={1} ms, total={2} ms",
-                                   swDirs.ElapsedMilliseconds, swReconcile.ElapsedMilliseconds, swTotal.ElapsedMilliseconds))
+        'Form1.StatusFromAnyThread(String.Format("Timing: dirs={0} ms, reconcile={1} ms, total={2} ms",
+        'swDirs.ElapsedMilliseconds, swReconcile.ElapsedMilliseconds, swTotal.ElapsedMilliseconds))
 
         Try : StatusProgress.ClosePopup() : Catch : End Try
         Return stats
     End Function
+
+
 
     ' ---------- Prefetch once per ROOT (range scan uses index on files(fullpath)) ----------
     Private Function LoadExistingForRoot(conn As SQLiteConnection,
