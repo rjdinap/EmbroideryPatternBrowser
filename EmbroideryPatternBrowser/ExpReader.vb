@@ -8,6 +8,9 @@
         EnsureDefaultPalette()
         pattern.select_thread(0)     ' start on first color (safe even if already 0)
         ReadExpStitches(Me)
+
+        ' NEW: shrink palette to only the colors that actually got stitches
+        TrimThreadListToUsedColors(pattern)
     End Sub
 
     Private Sub EnsureDefaultPalette()
@@ -89,4 +92,47 @@
         If (n And &H80) <> 0 Then n -= &H100
         Return n
     End Function
+
+
+    ' --- helper ---
+    Private Sub TrimThreadListToUsedColors(p As EmbPattern)
+        If p Is Nothing Then Return
+        Dim n As Integer = Math.Min(p.Stitches.Count, p.StitchThreadIndices.Count)
+        If n <= 0 Then Return
+
+        ' Order of first appearance
+        Dim used As New HashSet(Of Integer)()
+        Dim order As New List(Of Integer)()
+        For i = 0 To n - 1
+            Dim idx As Integer = p.StitchThreadIndices(i)
+            If idx < 0 OrElse idx >= p.ThreadList.Count Then Continue For
+            If used.Add(idx) Then order.Add(idx)
+        Next
+        If order.Count = 0 OrElse order.Count = p.ThreadList.Count Then Return
+
+        ' Build remap oldIdx -> newIdx
+        Dim map As New Dictionary(Of Integer, Integer)()
+        Dim newThreads As New List(Of EmbThread)()
+        For newIdx = 0 To order.Count - 1
+            map(order(newIdx)) = newIdx
+            newThreads.Add(p.ThreadList(order(newIdx)))
+        Next
+
+        ' Remap stitch thread indices
+        For i = 0 To n - 1
+            Dim oldIdx = p.StitchThreadIndices(i)
+            Dim newIdx As Integer
+            If map.TryGetValue(oldIdx, newIdx) Then
+                p.StitchThreadIndices(i) = newIdx
+            End If
+        Next
+
+        ' Replace palette
+        p.ThreadList.Clear()
+        For Each t In newThreads
+            p.Add(t)
+        Next
+    End Sub
+
+
 End Class

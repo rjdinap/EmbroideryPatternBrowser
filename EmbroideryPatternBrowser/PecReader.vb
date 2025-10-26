@@ -67,17 +67,24 @@ Public Class PecReader
         End If
 
         ' ---- PEC color table: fixed 463 bytes ----
+        ' --- fixed: still read the whole 463-byte table to keep stream aligned ---
         Dim colorListLen As Integer = 463
         Dim colorBytes(colorListLen - 1) As Byte
         Dim gotList As Integer = ReadFully(colorBytes)
         If gotList <> colorBytes.Length Then
-            'Try : Form1.StatusFromAnyThread($"Error: PEC color list truncated. got={gotList} need={colorBytes.Length}") : Catch : End Try
             pattern.end() : Return
         End If
 
-        ' Apply PEC colors (this is what made the thumbnails correct)
-        MapPecColors(colorBytes)
-        'Try : Form1.StatusFromAnyThread($"[PEC] palette entries loaded = {pattern.ThreadList.Count}") : Catch : End Try
+        ' Use only the first (colorChanges + 1) entries, like the Java reader
+        Dim usedCount As Integer = Math.Max(0, Math.Min(colorListLen, colorChanges + 1))
+        If usedCount <= 0 Then
+            ' No color changes recorded: leave threadlist as-is
+        Else
+            Dim used(usedCount - 1) As Byte
+            Array.Copy(colorBytes, 0, used, 0, usedCount)
+            MapPecColors(used)
+        End If
+
 
         ' Two zeros, then 4 bytes, then FF F0, then 12 bytes
         Dim z1 As Integer = ReadInt8()
