@@ -13,7 +13,7 @@ update web site with new install information
 
 
 
-1.0.12	 - 
+1.0.12	 - Start to implement stitch viewer
 
 1.0.11	- fix a bug with cancelling scan for images
 		- fix a bug with pes reading; few files were inverted

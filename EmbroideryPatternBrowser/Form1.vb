@@ -34,9 +34,9 @@ Public Class Form1
     Private _logPath As String = Nothing
     Private _logInitialized As Boolean = False
     Private Const LOG_MAX_BYTES As Integer = 1024 * 1024 ' 1 MB
-    ' Form1.vb (inside the class)
     Private Const HelpPdfName As String = "EmbroideryHelp.pdf"
     Private _isShuttingDown As Boolean = False
+    Private _dlg As StitchDisplay
 
 
 
@@ -46,17 +46,19 @@ Public Class Form1
         StatusProgress.ShowPopup(status:="Setting up...", indeterminate:=True)
         Logger.Initialize() ' uses Documents\EmbroideryPatternBrowser\logs\EmbroideryPatternBrowser-YYYYMMDD.log
         Logger.AttachUI(Me, RichTextBox_Status) ' your status RichTextBox
-        'Logger.SetMinLevels(screenLevel:=LogLevel.INFO, fileLevel:=LogLevel.DEBUG)
-        'InitializeLogFile()
         Me.WindowState = FormWindowState.Maximized
-
-        ' Hide legacy left panel UI
-        Panel_Main_Left.Hide()
 
         ' USB-only browser control
         usbBrowser = New UsbFileBrowser() With {.Dock = DockStyle.Fill}
         Panel_Right_Bottom_Fill.Controls.Add(usbBrowser)
         usbBrowser.NavigateToRoot()
+
+        _dlg = New StitchDisplay(
+        Panel_TabPage2_Fill_Right,
+        Panel_TabPage2_Fill_Bottom,
+        ZoomPictureBox_Stitches)
+
+        _dlg.BuildUI()
 
         Dim ver As String = ""
         Try
@@ -91,9 +93,11 @@ Public Class Form1
 
     ' Kick off the DB open only after the form has actually shown & painted.
     Private Async Sub Form1_Shown(sender As Object, e As EventArgs) Handles Me.Shown
+
         ' Let the form finish its first paint & layout before we start work
         Await Task.Yield()
 
+        'open database
         ' Make sure the popup is up and can paint/animate
         Try
             StatusProgress.SetStatus("Opening database…")
@@ -103,20 +107,13 @@ Public Class Form1
         Catch
         End Try
 
-        Dim dbPath As String = databaseName
-
         Try
             ' Run heavy DB open OFF the UI thread
             Await Task.Run(Sub()
-                               ' Do NOT touch UI directly in here.
-                               SQLiteOperations.InitializeSQLite(dbPath)
-
-                               ' If you want progress from inside InitializeSQLite,
-                               ' expose callbacks there and call BeginInvoke(...) here.
+                               SQLiteOperations.InitializeSQLite(databaseName)
                            End Sub)
-
-            ' Back on UI thread: update UI
             Logger.Info("Database ready: " & databaseName)
+
 
         Catch ex As Exception
             Logger.Error(ex.Message, ex.ToString())
@@ -161,7 +158,7 @@ Public Class Form1
             Panel_Main_Fill.Controls.Clear()
             Panel_Main_Fill.Controls.Add(grid)
 
-            grid.Bind(dt, AddressOf CreateImageFromPatternWrapper, PictureBox_FullImage, AddressOf SaveMetadataToDb)
+            grid.Bind(dt, AddressOf CreateImageFromPatternWrapper, PictureBox_FullImage, AddressOf SaveMetadataToDb, StitchDisplay:=_dlg)
             grid.Focus()
         Catch ex As Exception
             Logger.Error(ex.Message, ex.StackTrace.ToString)
@@ -348,47 +345,6 @@ Public Class Form1
 
 
 
-
-    'Set up log file on startup
-    'Private Sub InitializeLogFile()
-    '    Try
-
-    '        Dim docs As String = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
-    '        _logPath = IO.Path.Combine(docs, "EmbroideryPatternBrowser.log")
-
-    '        ' Ensure file exists
-    '        If Not IO.File.Exists(_logPath) Then
-    '            Using fs = IO.File.Create(_logPath)
-    '            End Using
-    '            _logInitialized = True
-    '            Return
-    '        End If
-
-    '        ' Truncate to last 1MB (keep most recent) once per startup
-    '        Dim fi As New IO.FileInfo(_logPath)
-    '        If fi.Length > LOG_MAX_BYTES Then
-    '            Dim buf(LOG_MAX_BYTES - 1) As Byte
-    '            Dim read As Integer
-    '            Using fs As New IO.FileStream(_logPath, IO.FileMode.Open, IO.FileAccess.Read, IO.FileShare.ReadWrite)
-    '                ' Seek to last 1MB and read forward
-    '                fs.Seek(-LOG_MAX_BYTES, IO.SeekOrigin.End)
-    '                read = fs.Read(buf, 0, buf.Length)
-    '            End Using
-    '            Using ws As New IO.FileStream(_logPath, IO.FileMode.Create, IO.FileAccess.Write, IO.FileShare.Read)
-    '                ws.Write(buf, 0, read)
-    '            End Using
-    '        End If
-
-    '        _logInitialized = True
-    '        Status("Initializing log file " + _logPath)
-    '    Catch
-    '        ' Swallow; logging should never crash the UI
-    '        _logInitialized = False
-    '    End Try
-    'End Sub
-
-
-
     ' ==== Open DB ====
     Private Sub OpenDatabaseToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles OpenDatabaseToolStripMenuItem.Click
         Try
@@ -411,6 +367,7 @@ Public Class Form1
             Logger.Error(ex.Message, ex.StackTrace.ToString)
         End Try
     End Sub
+
 
 
     'optimize database

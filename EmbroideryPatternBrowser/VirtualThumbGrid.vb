@@ -27,6 +27,14 @@ Public Class VirtualThumbGrid
     ' Selection state
     Private _selectedIndex As Integer = -1
 
+    ' === Target stitch player for TabPage2 ===
+    Private _stitchDisplay As StitchDisplay
+
+    ' Attach from Form1 after you construct both controls
+    Public Sub AttachStitchDisplay(sd As StitchDisplay)
+        _stitchDisplay = sd
+    End Sub
+
 
     ' --- Drag / drop support fields ---
     Private _dragStart As Point
@@ -77,9 +85,6 @@ Public Class VirtualThumbGrid
         End Get
     End Property
 
-
-
-
     Public ReadOnly Property SelectedIndex As Integer
         Get
             Return _selectedIndex
@@ -94,7 +99,8 @@ Public Class VirtualThumbGrid
     Public Overloads Sub Bind(table As DataTable,
                           Optional fullImageFactory As Func(Of String, Integer, Integer, Image) = Nothing,
                           Optional fullImageTarget As Control = Nothing,
-                          Optional saveMetadata As Func(Of DataRow, String, Boolean) = Nothing)
+                          Optional saveMetadata As Func(Of DataRow, String, Boolean) = Nothing,
+                          Optional stitchDisplay As StitchDisplay = Nothing)
         If table Is Nothing Then Throw New ArgumentNullException(NameOf(table))
         _table = table
         _rowCount = _table.Rows.Count
@@ -102,6 +108,7 @@ Public Class VirtualThumbGrid
         _fullImageFactory = fullImageFactory
         _fullImageTarget = fullImageTarget
         _saveMetadata = saveMetadata
+        _stitchDisplay = stitchDisplay
 
         ' Build popup with callbacks
         _popup = New PopupMenuItems(
@@ -126,14 +133,7 @@ Public Class VirtualThumbGrid
         End If
         Invalidate()
 
-        ' Re-render preview on PictureBox resize so it always fits
-        'If _fullImageTarget IsNot Nothing Then
-        'AddHandler _fullImageTarget.Resize, Sub(sender, args)
-        'If _selectedIndex >= 0 Then
-        'TryShowFullImageForIndex(_selectedIndex)
-        'End If
-        'End Sub
-        'End If
+
     End Sub
 
 
@@ -181,6 +181,7 @@ Public Class VirtualThumbGrid
     Private ReadOnly _pending As New System.Collections.Concurrent.ConcurrentDictionary(Of Integer, Byte)()
     Private _activeFirstIndex As Integer = 0
     Private _activeLastIndex As Integer = -1
+
 
     Public Sub New()
         SetStyle(ControlStyles.AllPaintingInWmPaint Or
@@ -588,55 +589,74 @@ Public Class VirtualThumbGrid
         Dim path As String = SafeStr(row("fullpath"))
         If String.IsNullOrEmpty(path) Then Return
 
-        ' Snapshot the current target client size
+        ' >>> NEW: push the actual pattern to TabPage2 stitch-display <<<
+        If _stitchDisplay IsNot Nothing Then
+            ' We’re in UI thread here; if you ever call this from a worker,
+            ' this ensures it marshals back to UI.
+            If Me.InvokeRequired Then
+                Me.BeginInvoke(New Action(Sub() _stitchDisplay.UpdatePattern(path)))
+            Else
+                _stitchDisplay.UpdatePattern(path)
+            End If
+        End If
+        ' <<< END NEW >>>
+
+        ' Snapshot the current target client size (TabPage1 image box)
         Dim cs As Size = If(_fullImageTarget IsNot Nothing, _fullImageTarget.ClientSize, Size.Empty)
         Dim w As Integer = Math.Max(1, cs.Width)
         Dim h As Integer = Math.Max(1, cs.Height)
 
+        ' Existing async image build for TabPage1 continues unchanged…
         Task.Run(Function()
                      Dim img As Image = Nothing
                      Try
+                         ' build thumbnail/full image from embroidery file on disk
                          img = _fullImageFactory(path, w, h)
                      Catch
                      End Try
-                     Return img
-                 End Function).
-        ContinueWith(Sub(t)
-                         Dim rawImg = t.Result
-                         If rawImg Is Nothing Then Return
+
+                     If img Is Nothing Then Return Task.CompletedTask
+
+                     ' Assign image on UI thread
+                     Try
                          If _fullImageTarget Is Nothing OrElse _fullImageTarget.IsDisposed Then
-                             Try : rawImg.Dispose() : Catch : End Try
-                             Return
+                             img.Dispose() : Return Task.CompletedTask
                          End If
 
                          _fullImageTarget.BeginInvoke(DirectCast(Sub()
-                                                                     ' Read current image (if any) and replace it using reflection
-                                                                     Dim oldImg As Image = Nothing
-                                                                     Dim p = _fullImageTarget.GetType().GetProperty("Image")
-                                                                     If p IsNot Nothing AndAlso p.CanWrite Then
-                                                                         Try
-                                                                             oldImg = TryCast(p.GetValue(_fullImageTarget, Nothing), Image)
-                                                                         Catch
-                                                                         End Try
-                                                                         Try
-                                                                             p.SetValue(_fullImageTarget, rawImg, Nothing)
-                                                                         Catch
-                                                                             ' if the control has no Image setter, just drop it
-                                                                         End Try
-                                                                     End If
+                                                                     Try
+                                                                         ' Replace image normally (your existing code)
+                                                                         Dim p = _fullImageTarget.GetType().GetProperty("Image")
+                                                                         If p IsNot Nothing AndAlso p.CanWrite Then
+                                                                             Dim oldImg As Image = TryCast(p.GetValue(_fullImageTarget, Nothing), Image)
+                                                                             p.SetValue(_fullImageTarget, img, Nothing)
 
-                                                                     ' If this is a ZoomPictureBox, call FitToWindow to start fitted
-                                                                     Dim m = _fullImageTarget.GetType().GetMethod("FitToWindow", Type.EmptyTypes)
-                                                                     If m IsNot Nothing Then
-                                                                         Try : m.Invoke(_fullImageTarget, Nothing) : Catch : End Try
-                                                                     End If
+                                                                             ' If your full-image target is a ZoomPictureBox, fit it
+                                                                             Try
+                                                                                 Dim m = _fullImageTarget.GetType().GetMethod("FitToWindow", Type.EmptyTypes)
+                                                                                 If m IsNot Nothing Then m.Invoke(_fullImageTarget, Nothing)
+                                                                             Catch
+                                                                             End Try
 
-                                                                     If oldImg IsNot Nothing AndAlso Not Object.ReferenceEquals(oldImg, rawImg) Then
-                                                                         Try : oldImg.Dispose() : Catch : End Try
-                                                                     End If
-                                                                 End Sub, Action))
-                     End Sub, TaskScheduler.FromCurrentSynchronizationContext())
+                                                                             If oldImg IsNot Nothing AndAlso Not Object.ReferenceEquals(oldImg, img) Then
+                                                                                 Try : oldImg.Dispose() : Catch : End Try
+                                                                             End If
+                                                                         Else
+                                                                             ' If no Image property, at least dispose to avoid leaks
+                                                                             img.Dispose()
+                                                                         End If
+                                                                     Catch
+                                                                         Try : img.Dispose() : Catch : End Try
+                                                                     End Try
+                                                                 End Sub, MethodInvoker))
+                     Catch
+                         Try : img.Dispose() : Catch : End Try
+                     End Try
+
+                     Return Task.CompletedTask
+                 End Function)
     End Sub
+
 
 
     ' === Popup actions ===
@@ -1238,6 +1258,8 @@ Public Class VirtualThumbGrid
             End If
         End If
     End Sub
+
+
 
 
 

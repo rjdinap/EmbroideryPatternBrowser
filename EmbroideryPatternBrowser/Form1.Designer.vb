@@ -48,16 +48,23 @@ Partial Class Form1
         Me.Panel_Main_Botton_Top = New System.Windows.Forms.Panel()
         Me.Label_Database = New System.Windows.Forms.Label()
         Me.TextBox_Database = New System.Windows.Forms.TextBox()
-        Me.Panel_Main_Left = New System.Windows.Forms.Panel()
         Me.Panel_Main_Fill = New System.Windows.Forms.Panel()
         Me.Panel_Right = New System.Windows.Forms.Panel()
         Me.Panel_Right_Fill = New System.Windows.Forms.Panel()
-        Me.Panel_Right_Top = New System.Windows.Forms.Panel()
+        Me.TabControl_Panel_Right_Fill = New System.Windows.Forms.TabControl()
+        Me.TabPage1 = New System.Windows.Forms.TabPage()
+        Me.Panel_TabPage1_Fill = New System.Windows.Forms.Panel()
+        Me.PictureBox_FullImage = New EmbroideryPatternBrowser.ZoomPictureBox()
+        Me.Panel_TabPage1_Top = New System.Windows.Forms.Panel()
         Me.Button_Rotate = New System.Windows.Forms.Button()
+        Me.TabPage2 = New System.Windows.Forms.TabPage()
+        Me.Panel_TabPage_Fill_Fill = New System.Windows.Forms.Panel()
+        Me.ZoomPictureBox_Stitches = New EmbroideryPatternBrowser.ZoomPictureBox()
+        Me.Panel_TabPage2_Fill_Bottom = New System.Windows.Forms.Panel()
+        Me.Panel_TabPage2_Fill_Right = New System.Windows.Forms.Panel()
         Me.Panel_Right_Bottom = New System.Windows.Forms.Panel()
         Me.Panel_Right_Bottom_Fill = New System.Windows.Forms.Panel()
         Me.Panel_Right_Bottom_Top = New System.Windows.Forms.Panel()
-        Me.PictureBox_FullImage = New EmbroideryPatternBrowser.ZoomPictureBox()
         Me.Panel_Main_Top.SuspendLayout()
         Me.MenuStrip1.SuspendLayout()
         Me.Panel_Main_Bottom.SuspendLayout()
@@ -65,7 +72,12 @@ Partial Class Form1
         Me.Panel_Main_Botton_Top.SuspendLayout()
         Me.Panel_Right.SuspendLayout()
         Me.Panel_Right_Fill.SuspendLayout()
-        Me.Panel_Right_Top.SuspendLayout()
+        Me.TabControl_Panel_Right_Fill.SuspendLayout()
+        Me.TabPage1.SuspendLayout()
+        Me.Panel_TabPage1_Fill.SuspendLayout()
+        Me.Panel_TabPage1_Top.SuspendLayout()
+        Me.TabPage2.SuspendLayout()
+        Me.Panel_TabPage_Fill_Fill.SuspendLayout()
         Me.Panel_Right_Bottom.SuspendLayout()
         Me.SuspendLayout()
         '
@@ -179,25 +191,25 @@ Partial Class Form1
         'ScanForImagesToolStripMenuItem
         '
         Me.ScanForImagesToolStripMenuItem.Name = "ScanForImagesToolStripMenuItem"
-        Me.ScanForImagesToolStripMenuItem.Size = New System.Drawing.Size(180, 24)
+        Me.ScanForImagesToolStripMenuItem.Size = New System.Drawing.Size(175, 24)
         Me.ScanForImagesToolStripMenuItem.Text = "Scan for Images"
         '
         'SettingsToolStripMenuItem
         '
         Me.SettingsToolStripMenuItem.Name = "SettingsToolStripMenuItem"
-        Me.SettingsToolStripMenuItem.Size = New System.Drawing.Size(180, 24)
+        Me.SettingsToolStripMenuItem.Size = New System.Drawing.Size(175, 24)
         Me.SettingsToolStripMenuItem.Text = "Options"
         '
         'ToolStripMenuItem1
         '
         Me.ToolStripMenuItem1.Name = "ToolStripMenuItem1"
-        Me.ToolStripMenuItem1.Size = New System.Drawing.Size(177, 6)
+        Me.ToolStripMenuItem1.Size = New System.Drawing.Size(172, 6)
         '
         'MaintenanceToolStripMenuItem
         '
         Me.MaintenanceToolStripMenuItem.DropDownItems.AddRange(New System.Windows.Forms.ToolStripItem() {Me.OptimizeDatabaseToolStripMenuItem})
         Me.MaintenanceToolStripMenuItem.Name = "MaintenanceToolStripMenuItem"
-        Me.MaintenanceToolStripMenuItem.Size = New System.Drawing.Size(180, 24)
+        Me.MaintenanceToolStripMenuItem.Size = New System.Drawing.Size(175, 24)
         Me.MaintenanceToolStripMenuItem.Text = "Maintenance"
         '
         'OptimizeDatabaseToolStripMenuItem
@@ -231,9 +243,9 @@ Partial Class Form1
         Me.Panel_Main_Bottom.Controls.Add(Me.Panel_Main_Bottom_Fill)
         Me.Panel_Main_Bottom.Controls.Add(Me.Panel_Main_Botton_Top)
         Me.Panel_Main_Bottom.Dock = System.Windows.Forms.DockStyle.Bottom
-        Me.Panel_Main_Bottom.Location = New System.Drawing.Point(200, 477)
+        Me.Panel_Main_Bottom.Location = New System.Drawing.Point(0, 477)
         Me.Panel_Main_Bottom.Name = "Panel_Main_Bottom"
-        Me.Panel_Main_Bottom.Size = New System.Drawing.Size(757, 130)
+        Me.Panel_Main_Bottom.Size = New System.Drawing.Size(924, 130)
         Me.Panel_Main_Bottom.TabIndex = 2
         '
         'Panel_Main_Bottom_Fill
@@ -242,7 +254,7 @@ Partial Class Form1
         Me.Panel_Main_Bottom_Fill.Dock = System.Windows.Forms.DockStyle.Fill
         Me.Panel_Main_Bottom_Fill.Location = New System.Drawing.Point(0, 0)
         Me.Panel_Main_Bottom_Fill.Name = "Panel_Main_Bottom_Fill"
-        Me.Panel_Main_Bottom_Fill.Size = New System.Drawing.Size(757, 100)
+        Me.Panel_Main_Bottom_Fill.Size = New System.Drawing.Size(924, 100)
         Me.Panel_Main_Bottom_Fill.TabIndex = 5
         '
         'RichTextBox_Status
@@ -251,7 +263,7 @@ Partial Class Form1
         Me.RichTextBox_Status.Font = New System.Drawing.Font("Microsoft Sans Serif", 12.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
         Me.RichTextBox_Status.Location = New System.Drawing.Point(0, 0)
         Me.RichTextBox_Status.Name = "RichTextBox_Status"
-        Me.RichTextBox_Status.Size = New System.Drawing.Size(757, 100)
+        Me.RichTextBox_Status.Size = New System.Drawing.Size(924, 100)
         Me.RichTextBox_Status.TabIndex = 0
         Me.RichTextBox_Status.Text = ""
         '
@@ -262,7 +274,7 @@ Partial Class Form1
         Me.Panel_Main_Botton_Top.Dock = System.Windows.Forms.DockStyle.Bottom
         Me.Panel_Main_Botton_Top.Location = New System.Drawing.Point(0, 100)
         Me.Panel_Main_Botton_Top.Name = "Panel_Main_Botton_Top"
-        Me.Panel_Main_Botton_Top.Size = New System.Drawing.Size(757, 30)
+        Me.Panel_Main_Botton_Top.Size = New System.Drawing.Size(924, 30)
         Me.Panel_Main_Botton_Top.TabIndex = 4
         '
         'Label_Database
@@ -287,65 +299,149 @@ Partial Class Form1
         Me.TextBox_Database.TabIndex = 3
         Me.TextBox_Database.Text = "No Database Opened."
         '
-        'Panel_Main_Left
-        '
-        Me.Panel_Main_Left.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
-        Me.Panel_Main_Left.Dock = System.Windows.Forms.DockStyle.Left
-        Me.Panel_Main_Left.Enabled = False
-        Me.Panel_Main_Left.Location = New System.Drawing.Point(0, 59)
-        Me.Panel_Main_Left.Name = "Panel_Main_Left"
-        Me.Panel_Main_Left.Size = New System.Drawing.Size(200, 548)
-        Me.Panel_Main_Left.TabIndex = 3
-        '
         'Panel_Main_Fill
         '
         Me.Panel_Main_Fill.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
         Me.Panel_Main_Fill.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.Panel_Main_Fill.Location = New System.Drawing.Point(200, 59)
+        Me.Panel_Main_Fill.Location = New System.Drawing.Point(0, 59)
         Me.Panel_Main_Fill.Name = "Panel_Main_Fill"
-        Me.Panel_Main_Fill.Size = New System.Drawing.Size(757, 418)
+        Me.Panel_Main_Fill.Size = New System.Drawing.Size(924, 418)
         Me.Panel_Main_Fill.TabIndex = 4
         '
         'Panel_Right
         '
         Me.Panel_Right.Controls.Add(Me.Panel_Right_Fill)
-        Me.Panel_Right.Controls.Add(Me.Panel_Right_Top)
         Me.Panel_Right.Controls.Add(Me.Panel_Right_Bottom)
         Me.Panel_Right.Dock = System.Windows.Forms.DockStyle.Right
-        Me.Panel_Right.Location = New System.Drawing.Point(957, 59)
+        Me.Panel_Right.Location = New System.Drawing.Point(924, 59)
         Me.Panel_Right.Name = "Panel_Right"
-        Me.Panel_Right.Size = New System.Drawing.Size(399, 548)
+        Me.Panel_Right.Size = New System.Drawing.Size(432, 548)
         Me.Panel_Right.TabIndex = 1
         '
         'Panel_Right_Fill
         '
         Me.Panel_Right_Fill.AutoScroll = True
-        Me.Panel_Right_Fill.Controls.Add(Me.PictureBox_FullImage)
+        Me.Panel_Right_Fill.Controls.Add(Me.TabControl_Panel_Right_Fill)
         Me.Panel_Right_Fill.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.Panel_Right_Fill.Location = New System.Drawing.Point(0, 39)
+        Me.Panel_Right_Fill.Location = New System.Drawing.Point(0, 0)
         Me.Panel_Right_Fill.Name = "Panel_Right_Fill"
-        Me.Panel_Right_Fill.Size = New System.Drawing.Size(399, 280)
+        Me.Panel_Right_Fill.Size = New System.Drawing.Size(432, 319)
         Me.Panel_Right_Fill.TabIndex = 3
         '
-        'Panel_Right_Top
+        'TabControl_Panel_Right_Fill
         '
-        Me.Panel_Right_Top.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
-        Me.Panel_Right_Top.Controls.Add(Me.Button_Rotate)
-        Me.Panel_Right_Top.Dock = System.Windows.Forms.DockStyle.Top
-        Me.Panel_Right_Top.Location = New System.Drawing.Point(0, 0)
-        Me.Panel_Right_Top.Name = "Panel_Right_Top"
-        Me.Panel_Right_Top.Size = New System.Drawing.Size(399, 39)
-        Me.Panel_Right_Top.TabIndex = 1
+        Me.TabControl_Panel_Right_Fill.Controls.Add(Me.TabPage1)
+        Me.TabControl_Panel_Right_Fill.Controls.Add(Me.TabPage2)
+        Me.TabControl_Panel_Right_Fill.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.TabControl_Panel_Right_Fill.Font = New System.Drawing.Font("Microsoft Sans Serif", 12.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        Me.TabControl_Panel_Right_Fill.Location = New System.Drawing.Point(0, 0)
+        Me.TabControl_Panel_Right_Fill.Name = "TabControl_Panel_Right_Fill"
+        Me.TabControl_Panel_Right_Fill.SelectedIndex = 0
+        Me.TabControl_Panel_Right_Fill.Size = New System.Drawing.Size(432, 319)
+        Me.TabControl_Panel_Right_Fill.TabIndex = 0
+        '
+        'TabPage1
+        '
+        Me.TabPage1.Controls.Add(Me.Panel_TabPage1_Fill)
+        Me.TabPage1.Controls.Add(Me.Panel_TabPage1_Top)
+        Me.TabPage1.Location = New System.Drawing.Point(4, 29)
+        Me.TabPage1.Name = "TabPage1"
+        Me.TabPage1.Padding = New System.Windows.Forms.Padding(3)
+        Me.TabPage1.Size = New System.Drawing.Size(424, 286)
+        Me.TabPage1.TabIndex = 0
+        Me.TabPage1.Text = "Image"
+        Me.TabPage1.UseVisualStyleBackColor = True
+        '
+        'Panel_TabPage1_Fill
+        '
+        Me.Panel_TabPage1_Fill.Controls.Add(Me.PictureBox_FullImage)
+        Me.Panel_TabPage1_Fill.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.Panel_TabPage1_Fill.Location = New System.Drawing.Point(3, 39)
+        Me.Panel_TabPage1_Fill.Name = "Panel_TabPage1_Fill"
+        Me.Panel_TabPage1_Fill.Size = New System.Drawing.Size(418, 244)
+        Me.Panel_TabPage1_Fill.TabIndex = 1
+        '
+        'PictureBox_FullImage
+        '
+        Me.PictureBox_FullImage.BackColor = System.Drawing.Color.White
+        Me.PictureBox_FullImage.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.PictureBox_FullImage.Image = Nothing
+        Me.PictureBox_FullImage.Location = New System.Drawing.Point(0, 0)
+        Me.PictureBox_FullImage.Name = "PictureBox_FullImage"
+        Me.PictureBox_FullImage.Size = New System.Drawing.Size(418, 244)
+        Me.PictureBox_FullImage.TabIndex = 0
+        Me.PictureBox_FullImage.Zoom = 1.0R
+        '
+        'Panel_TabPage1_Top
+        '
+        Me.Panel_TabPage1_Top.BackColor = System.Drawing.SystemColors.Control
+        Me.Panel_TabPage1_Top.Controls.Add(Me.Button_Rotate)
+        Me.Panel_TabPage1_Top.Dock = System.Windows.Forms.DockStyle.Top
+        Me.Panel_TabPage1_Top.Location = New System.Drawing.Point(3, 3)
+        Me.Panel_TabPage1_Top.Name = "Panel_TabPage1_Top"
+        Me.Panel_TabPage1_Top.Size = New System.Drawing.Size(418, 36)
+        Me.Panel_TabPage1_Top.TabIndex = 0
         '
         'Button_Rotate
         '
         Me.Button_Rotate.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.Button_Rotate.Location = New System.Drawing.Point(3, 4)
+        Me.Button_Rotate.Location = New System.Drawing.Point(3, 6)
         Me.Button_Rotate.Name = "Button_Rotate"
         Me.Button_Rotate.Size = New System.Drawing.Size(66, 23)
         Me.Button_Rotate.TabIndex = 0
         Me.Button_Rotate.Text = "Rotate"
         Me.Button_Rotate.UseVisualStyleBackColor = True
+        '
+        'TabPage2
+        '
+        Me.TabPage2.Controls.Add(Me.Panel_TabPage_Fill_Fill)
+        Me.TabPage2.Controls.Add(Me.Panel_TabPage2_Fill_Bottom)
+        Me.TabPage2.Controls.Add(Me.Panel_TabPage2_Fill_Right)
+        Me.TabPage2.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        Me.TabPage2.Location = New System.Drawing.Point(4, 29)
+        Me.TabPage2.Name = "TabPage2"
+        Me.TabPage2.Padding = New System.Windows.Forms.Padding(3)
+        Me.TabPage2.Size = New System.Drawing.Size(424, 286)
+        Me.TabPage2.TabIndex = 1
+        Me.TabPage2.Text = "Stitches"
+        Me.TabPage2.UseVisualStyleBackColor = True
+        '
+        'Panel_TabPage_Fill_Fill
+        '
+        Me.Panel_TabPage_Fill_Fill.Controls.Add(Me.ZoomPictureBox_Stitches)
+        Me.Panel_TabPage_Fill_Fill.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.Panel_TabPage_Fill_Fill.Location = New System.Drawing.Point(3, 3)
+        Me.Panel_TabPage_Fill_Fill.Name = "Panel_TabPage_Fill_Fill"
+        Me.Panel_TabPage_Fill_Fill.Size = New System.Drawing.Size(332, 234)
+        Me.Panel_TabPage_Fill_Fill.TabIndex = 2
+        '
+        'ZoomPictureBox_Stitches
+        '
+        Me.ZoomPictureBox_Stitches.BackColor = System.Drawing.Color.White
+        Me.ZoomPictureBox_Stitches.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.ZoomPictureBox_Stitches.Image = Nothing
+        Me.ZoomPictureBox_Stitches.Location = New System.Drawing.Point(0, 0)
+        Me.ZoomPictureBox_Stitches.Name = "ZoomPictureBox_Stitches"
+        Me.ZoomPictureBox_Stitches.Size = New System.Drawing.Size(332, 234)
+        Me.ZoomPictureBox_Stitches.TabIndex = 0
+        Me.ZoomPictureBox_Stitches.Text = "ZoomPictureBox1"
+        Me.ZoomPictureBox_Stitches.Zoom = 1.0R
+        '
+        'Panel_TabPage2_Fill_Bottom
+        '
+        Me.Panel_TabPage2_Fill_Bottom.Dock = System.Windows.Forms.DockStyle.Bottom
+        Me.Panel_TabPage2_Fill_Bottom.Location = New System.Drawing.Point(3, 237)
+        Me.Panel_TabPage2_Fill_Bottom.Name = "Panel_TabPage2_Fill_Bottom"
+        Me.Panel_TabPage2_Fill_Bottom.Size = New System.Drawing.Size(332, 46)
+        Me.Panel_TabPage2_Fill_Bottom.TabIndex = 1
+        '
+        'Panel_TabPage2_Fill_Right
+        '
+        Me.Panel_TabPage2_Fill_Right.Dock = System.Windows.Forms.DockStyle.Right
+        Me.Panel_TabPage2_Fill_Right.Location = New System.Drawing.Point(335, 3)
+        Me.Panel_TabPage2_Fill_Right.Name = "Panel_TabPage2_Fill_Right"
+        Me.Panel_TabPage2_Fill_Right.Size = New System.Drawing.Size(86, 280)
+        Me.Panel_TabPage2_Fill_Right.TabIndex = 0
         '
         'Panel_Right_Bottom
         '
@@ -355,7 +451,7 @@ Partial Class Form1
         Me.Panel_Right_Bottom.Dock = System.Windows.Forms.DockStyle.Bottom
         Me.Panel_Right_Bottom.Location = New System.Drawing.Point(0, 319)
         Me.Panel_Right_Bottom.Name = "Panel_Right_Bottom"
-        Me.Panel_Right_Bottom.Size = New System.Drawing.Size(399, 229)
+        Me.Panel_Right_Bottom.Size = New System.Drawing.Size(432, 229)
         Me.Panel_Right_Bottom.TabIndex = 2
         '
         'Panel_Right_Bottom_Fill
@@ -363,7 +459,7 @@ Partial Class Form1
         Me.Panel_Right_Bottom_Fill.Dock = System.Windows.Forms.DockStyle.Fill
         Me.Panel_Right_Bottom_Fill.Location = New System.Drawing.Point(0, 34)
         Me.Panel_Right_Bottom_Fill.Name = "Panel_Right_Bottom_Fill"
-        Me.Panel_Right_Bottom_Fill.Size = New System.Drawing.Size(399, 195)
+        Me.Panel_Right_Bottom_Fill.Size = New System.Drawing.Size(432, 195)
         Me.Panel_Right_Bottom_Fill.TabIndex = 1
         '
         'Panel_Right_Bottom_Top
@@ -372,19 +468,8 @@ Partial Class Form1
         Me.Panel_Right_Bottom_Top.Dock = System.Windows.Forms.DockStyle.Top
         Me.Panel_Right_Bottom_Top.Location = New System.Drawing.Point(0, 0)
         Me.Panel_Right_Bottom_Top.Name = "Panel_Right_Bottom_Top"
-        Me.Panel_Right_Bottom_Top.Size = New System.Drawing.Size(399, 34)
+        Me.Panel_Right_Bottom_Top.Size = New System.Drawing.Size(432, 34)
         Me.Panel_Right_Bottom_Top.TabIndex = 0
-        '
-        'PictureBox_FullImage
-        '
-        Me.PictureBox_FullImage.BackColor = System.Drawing.Color.White
-        Me.PictureBox_FullImage.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.PictureBox_FullImage.Image = Nothing
-        Me.PictureBox_FullImage.Location = New System.Drawing.Point(0, 0)
-        Me.PictureBox_FullImage.Name = "PictureBox_FullImage"
-        Me.PictureBox_FullImage.Size = New System.Drawing.Size(399, 280)
-        Me.PictureBox_FullImage.TabIndex = 0
-        Me.PictureBox_FullImage.Zoom = 1.0R
         '
         'Form1
         '
@@ -394,7 +479,6 @@ Partial Class Form1
         Me.Controls.Add(Me.Panel_Main_Fill)
         Me.Controls.Add(Me.Panel_Main_Bottom)
         Me.Controls.Add(Me.Panel_Right)
-        Me.Controls.Add(Me.Panel_Main_Left)
         Me.Controls.Add(Me.Panel_Main_Top)
         Me.MainMenuStrip = Me.MenuStrip1
         Me.Name = "Form1"
@@ -409,7 +493,12 @@ Partial Class Form1
         Me.Panel_Main_Botton_Top.PerformLayout()
         Me.Panel_Right.ResumeLayout(False)
         Me.Panel_Right_Fill.ResumeLayout(False)
-        Me.Panel_Right_Top.ResumeLayout(False)
+        Me.TabControl_Panel_Right_Fill.ResumeLayout(False)
+        Me.TabPage1.ResumeLayout(False)
+        Me.Panel_TabPage1_Fill.ResumeLayout(False)
+        Me.Panel_TabPage1_Top.ResumeLayout(False)
+        Me.TabPage2.ResumeLayout(False)
+        Me.Panel_TabPage_Fill_Fill.ResumeLayout(False)
         Me.Panel_Right_Bottom.ResumeLayout(False)
         Me.ResumeLayout(False)
 
@@ -418,14 +507,12 @@ Partial Class Form1
     Friend WithEvents MenuStrip1 As System.Windows.Forms.MenuStrip
     Friend WithEvents FileToolStripMenuItem As System.Windows.Forms.ToolStripMenuItem
     Friend WithEvents Panel_Main_Bottom As System.Windows.Forms.Panel
-    Friend WithEvents Panel_Main_Left As System.Windows.Forms.Panel
     Friend WithEvents Panel_Main_Fill As System.Windows.Forms.Panel
     Friend WithEvents ToolsToolStripMenuItem As ToolStripMenuItem
     Friend WithEvents Button_Search As Button
     Friend WithEvents TextBox_Search As TextBox
     Friend WithEvents Label_Search As Label
     Friend WithEvents Panel_Right As Panel
-    Friend WithEvents Panel_Right_Top As Panel
     Friend WithEvents Button_Rotate As Button
     Friend WithEvents ComboBox_Filter As ComboBox
     Friend WithEvents Label_Filter As Label
@@ -450,4 +537,13 @@ Partial Class Form1
     Friend WithEvents MaintenanceToolStripMenuItem As ToolStripMenuItem
     Friend WithEvents OptimizeDatabaseToolStripMenuItem As ToolStripMenuItem
     Friend WithEvents PictureBox_FullImage As ZoomPictureBox
+    Friend WithEvents TabControl_Panel_Right_Fill As TabControl
+    Friend WithEvents TabPage1 As TabPage
+    Friend WithEvents TabPage2 As TabPage
+    Friend WithEvents Panel_TabPage1_Fill As Panel
+    Friend WithEvents Panel_TabPage1_Top As Panel
+    Friend WithEvents Panel_TabPage2_Fill_Right As Panel
+    Friend WithEvents Panel_TabPage_Fill_Fill As Panel
+    Friend WithEvents ZoomPictureBox_Stitches As ZoomPictureBox
+    Friend WithEvents Panel_TabPage2_Fill_Bottom As Panel
 End Class
