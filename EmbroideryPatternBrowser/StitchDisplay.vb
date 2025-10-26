@@ -148,6 +148,7 @@ Public Class StitchDisplay
             If Not String.IsNullOrWhiteSpace(patternPathOrName) Then
                 ' Uses the same loader Form1 uses
                 pat = EmbReaderFactory.LoadPattern(patternPathOrName)
+                Logger.Info("StitchDisplay.UpdatePattern: threadlist count: " & pat.ThreadList.Count.ToString)
             End If
         Catch ex As Exception
             Try : Logger.Error("StitchDisplay.UpdatePattern: " & ex.Message, ex.ToString()) : Catch : End Try
