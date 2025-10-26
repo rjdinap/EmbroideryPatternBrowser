@@ -44,28 +44,20 @@ Public Class Form1
     Private Sub EmbroideryPatternBrowser_Load(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles MyBase.Load
 
         StatusProgress.ShowPopup(status:="Setting up...", indeterminate:=True)
-        Logger.Initialize() ' uses Documents\EmbroideryPatternBrowser\logs\EmbroideryPatternBrowser-YYYYMMDD.log
-        Logger.AttachUI(Me, RichTextBox_Status) ' your status RichTextBox
         Me.WindowState = FormWindowState.Maximized
 
-        ' USB-only browser control
-        usbBrowser = New UsbFileBrowser() With {.Dock = DockStyle.Fill}
-        Panel_Right_Bottom_Fill.Controls.Add(usbBrowser)
-        usbBrowser.NavigateToRoot()
+    End Sub
 
-        _dlg = New StitchDisplay(
-        Panel_TabPage2_Fill_Right,
-        Panel_TabPage2_Fill_Bottom,
-        ZoomPictureBox_Stitches)
 
-        _dlg.BuildUI()
+    ' Kick off the DB open only after the form has actually shown & painted.
+    Private Async Sub Form1_Shown(sender As Object, e As EventArgs) Handles Me.Shown
 
-        Dim ver As String = ""
-        Try
-            ver = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString()
-        Catch
-            ver = "unknown"
-        End Try
+        ' Let the form finish its first paint & layout before we start work
+        Await Task.Yield()
+
+        Logger.Initialize() ' uses Documents\EmbroideryPatternBrowser\logs\EmbroideryPatternBrowser-YYYYMMDD.log
+        Logger.AttachUI(Me, RichTextBox_Status) ' your status RichTextBox
+
 
         'handle any uncaught exceptions
         AddHandler Application.ThreadException, Sub(sender2, args)
@@ -86,16 +78,19 @@ Public Class Form1
             Try : SQLiteOperations.CloseSQLite() : Catch : End Try
         End Sub
 
-        Logger.Noprefix("Welcome to EmbroideryPatternBrowser! : Version " & ver & vbCrLf)
 
-    End Sub
+        ' USB-only browser control
+        usbBrowser = New UsbFileBrowser() With {.Dock = DockStyle.Fill}
+        Panel_Right_Bottom_Fill.Controls.Add(usbBrowser)
 
+        usbBrowser.NavigateToRoot()
 
-    ' Kick off the DB open only after the form has actually shown & painted.
-    Private Async Sub Form1_Shown(sender As Object, e As EventArgs) Handles Me.Shown
-
-        ' Let the form finish its first paint & layout before we start work
-        Await Task.Yield()
+        'no one is going to see this anyway until they can search
+        _dlg = New StitchDisplay(
+        Panel_TabPage2_Fill_Right,
+        Panel_TabPage2_Fill_Bottom,
+        ZoomPictureBox_Stitches)
+        _dlg.BuildUI()
 
         'open database
         ' Make sure the popup is up and can paint/animate
@@ -114,7 +109,6 @@ Public Class Form1
                            End Sub)
             Logger.Info("Database ready: " & databaseName)
 
-
         Catch ex As Exception
             Logger.Error(ex.Message, ex.ToString())
         Finally
@@ -125,6 +119,8 @@ Public Class Form1
         'set the database name on the form
         TextBox_Database.Text = databaseName
 
+
+        Logger.Noprefix("Welcome to EmbroideryPatternBrowser! : Version " & My.Application.Info.Version.ToString & vbCrLf)
 
     End Sub
 

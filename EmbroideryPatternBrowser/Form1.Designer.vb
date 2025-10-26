@@ -58,13 +58,13 @@ Partial Class Form1
         Me.Panel_TabPage1_Top = New System.Windows.Forms.Panel()
         Me.Button_Rotate = New System.Windows.Forms.Button()
         Me.TabPage2 = New System.Windows.Forms.TabPage()
-        Me.Panel_TabPage_Fill_Fill = New System.Windows.Forms.Panel()
         Me.ZoomPictureBox_Stitches = New EmbroideryPatternBrowser.ZoomPictureBox()
         Me.Panel_TabPage2_Fill_Bottom = New System.Windows.Forms.Panel()
         Me.Panel_TabPage2_Fill_Right = New System.Windows.Forms.Panel()
         Me.Panel_Right_Bottom = New System.Windows.Forms.Panel()
         Me.Panel_Right_Bottom_Fill = New System.Windows.Forms.Panel()
         Me.Panel_Right_Bottom_Top = New System.Windows.Forms.Panel()
+        Me.Panel_TabPage2_Fill_Fill = New System.Windows.Forms.Panel()
         Me.Panel_Main_Top.SuspendLayout()
         Me.MenuStrip1.SuspendLayout()
         Me.Panel_Main_Bottom.SuspendLayout()
@@ -77,8 +77,8 @@ Partial Class Form1
         Me.Panel_TabPage1_Fill.SuspendLayout()
         Me.Panel_TabPage1_Top.SuspendLayout()
         Me.TabPage2.SuspendLayout()
-        Me.Panel_TabPage_Fill_Fill.SuspendLayout()
         Me.Panel_Right_Bottom.SuspendLayout()
+        Me.Panel_TabPage2_Fill_Fill.SuspendLayout()
         Me.SuspendLayout()
         '
         'Panel_Main_Top
@@ -394,9 +394,9 @@ Partial Class Form1
         '
         'TabPage2
         '
-        Me.TabPage2.Controls.Add(Me.Panel_TabPage_Fill_Fill)
-        Me.TabPage2.Controls.Add(Me.Panel_TabPage2_Fill_Bottom)
+        Me.TabPage2.Controls.Add(Me.Panel_TabPage2_Fill_Fill)
         Me.TabPage2.Controls.Add(Me.Panel_TabPage2_Fill_Right)
+        Me.TabPage2.Controls.Add(Me.Panel_TabPage2_Fill_Bottom)
         Me.TabPage2.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
         Me.TabPage2.Location = New System.Drawing.Point(4, 29)
         Me.TabPage2.Name = "TabPage2"
@@ -405,15 +405,6 @@ Partial Class Form1
         Me.TabPage2.TabIndex = 1
         Me.TabPage2.Text = "Stitches"
         Me.TabPage2.UseVisualStyleBackColor = True
-        '
-        'Panel_TabPage_Fill_Fill
-        '
-        Me.Panel_TabPage_Fill_Fill.Controls.Add(Me.ZoomPictureBox_Stitches)
-        Me.Panel_TabPage_Fill_Fill.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.Panel_TabPage_Fill_Fill.Location = New System.Drawing.Point(3, 3)
-        Me.Panel_TabPage_Fill_Fill.Name = "Panel_TabPage_Fill_Fill"
-        Me.Panel_TabPage_Fill_Fill.Size = New System.Drawing.Size(332, 234)
-        Me.Panel_TabPage_Fill_Fill.TabIndex = 2
         '
         'ZoomPictureBox_Stitches
         '
@@ -432,7 +423,7 @@ Partial Class Form1
         Me.Panel_TabPage2_Fill_Bottom.Dock = System.Windows.Forms.DockStyle.Bottom
         Me.Panel_TabPage2_Fill_Bottom.Location = New System.Drawing.Point(3, 237)
         Me.Panel_TabPage2_Fill_Bottom.Name = "Panel_TabPage2_Fill_Bottom"
-        Me.Panel_TabPage2_Fill_Bottom.Size = New System.Drawing.Size(332, 46)
+        Me.Panel_TabPage2_Fill_Bottom.Size = New System.Drawing.Size(418, 46)
         Me.Panel_TabPage2_Fill_Bottom.TabIndex = 1
         '
         'Panel_TabPage2_Fill_Right
@@ -440,7 +431,7 @@ Partial Class Form1
         Me.Panel_TabPage2_Fill_Right.Dock = System.Windows.Forms.DockStyle.Right
         Me.Panel_TabPage2_Fill_Right.Location = New System.Drawing.Point(335, 3)
         Me.Panel_TabPage2_Fill_Right.Name = "Panel_TabPage2_Fill_Right"
-        Me.Panel_TabPage2_Fill_Right.Size = New System.Drawing.Size(86, 280)
+        Me.Panel_TabPage2_Fill_Right.Size = New System.Drawing.Size(86, 234)
         Me.Panel_TabPage2_Fill_Right.TabIndex = 0
         '
         'Panel_Right_Bottom
@@ -471,6 +462,15 @@ Partial Class Form1
         Me.Panel_Right_Bottom_Top.Size = New System.Drawing.Size(432, 34)
         Me.Panel_Right_Bottom_Top.TabIndex = 0
         '
+        'Panel_TabPage2_Fill_Fill
+        '
+        Me.Panel_TabPage2_Fill_Fill.Controls.Add(Me.ZoomPictureBox_Stitches)
+        Me.Panel_TabPage2_Fill_Fill.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.Panel_TabPage2_Fill_Fill.Location = New System.Drawing.Point(3, 3)
+        Me.Panel_TabPage2_Fill_Fill.Name = "Panel_TabPage2_Fill_Fill"
+        Me.Panel_TabPage2_Fill_Fill.Size = New System.Drawing.Size(332, 234)
+        Me.Panel_TabPage2_Fill_Fill.TabIndex = 2
+        '
         'Form1
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
@@ -498,8 +498,8 @@ Partial Class Form1
         Me.Panel_TabPage1_Fill.ResumeLayout(False)
         Me.Panel_TabPage1_Top.ResumeLayout(False)
         Me.TabPage2.ResumeLayout(False)
-        Me.Panel_TabPage_Fill_Fill.ResumeLayout(False)
         Me.Panel_Right_Bottom.ResumeLayout(False)
+        Me.Panel_TabPage2_Fill_Fill.ResumeLayout(False)
         Me.ResumeLayout(False)
 
     End Sub
@@ -543,7 +543,7 @@ Partial Class Form1
     Friend WithEvents Panel_TabPage1_Fill As Panel
     Friend WithEvents Panel_TabPage1_Top As Panel
     Friend WithEvents Panel_TabPage2_Fill_Right As Panel
-    Friend WithEvents Panel_TabPage_Fill_Fill As Panel
     Friend WithEvents ZoomPictureBox_Stitches As ZoomPictureBox
     Friend WithEvents Panel_TabPage2_Fill_Bottom As Panel
+    Friend WithEvents Panel_TabPage2_Fill_Fill As Panel
 End Class

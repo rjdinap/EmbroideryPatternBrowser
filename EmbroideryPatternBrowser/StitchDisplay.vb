@@ -17,7 +17,6 @@ Public Class StitchDisplay
     Private _speed As TrackBar
     Private _tt As New ToolTip()
     ' ---------- State ----------
-    Private _timer As New Timer() With {.Interval = 30}
     Private _selectedColors As New HashSet(Of Integer)
     Private _drawUpto As Integer = 0
     Private _totalStitches As Integer = 0
@@ -25,6 +24,7 @@ Public Class StitchDisplay
     Private _bounds As RectangleF = RectangleF.Empty
     Private _margin As Integer = 20
     Private _currentPattern As EmbPattern
+    Private WithEvents _timer As New System.Windows.Forms.Timer() With {.Interval = 16}
 
     ' ---------- API ----------
     Public Sub New(rightPanel As Panel, bottomPanel As Panel, targetImageControl As Control)
@@ -46,7 +46,6 @@ Public Class StitchDisplay
         _rightPanel.Controls.Clear()
         _rightPanel.Controls.Add(_colorListPanel)
         AddHandler _colorListPanel.Resize, Sub() ResizeColorRows()
-        AddHandler _timer.Tick, AddressOf Timer_Tick
 
         ' ---- Bottom: timeline + controls (stacked vertically) ----
         _bottomPanel.Controls.Clear()
@@ -183,7 +182,7 @@ Public Class StitchDisplay
             Return
         End If
 
-        'extra guard on large number of theads
+        'extra guard on large number of threads
         Const MaxRows As Integer = 256   ' adjust as you wish
         Dim shown = Math.Min(pat.ThreadList.Count, MaxRows)
         For t = 0 To shown - 1
@@ -270,30 +269,42 @@ Public Class StitchDisplay
         _segments.Add((runStart, n - 1, colorForThread(curIdx), curIdx))
     End Sub
 
+
+
     Private Sub ProgressBar_Paint(sender As Object, e As PaintEventArgs)
         Dim g = e.Graphics
         g.Clear(Color.Gainsboro)
+
         If _segments Is Nothing OrElse _segments.Count = 0 OrElse _totalStitches <= 0 Then Return
 
-        Dim r = _progressBar.ClientRectangle
-        Dim W = Math.Max(1, r.Width)
-        Dim H = r.Height
-        Dim N = _totalStitches
+        Dim r As Rectangle = _progressBar.ClientRectangle
+        Dim inset As Integer = 12                 ' move right by 12px; also shrink total width by 24px
+        Dim left As Integer = r.Left + inset
+        Dim right As Integer = r.Right - inset
+        Dim innerW As Integer = Math.Max(1, right - left)
+        Dim H As Integer = r.Height
+        Dim N As Integer = _totalStitches
 
+        ' draw colored segments inside [left .. right]
         For Each seg In _segments
             If Not _selectedColors.Contains(seg.threadIdx) Then Continue For
-            Dim x0 As Integer = CInt(CDbl(seg.startIdx) / N * W)
-            Dim x1 As Integer = CInt(CDbl(seg.endIdx + 1) / N * W)
+            Dim x0 As Integer = left + CInt(CDbl(seg.startIdx) / N * innerW)
+            Dim x1 As Integer = left + CInt(CDbl(seg.endIdx + 1) / N * innerW)
             Using br As New SolidBrush(seg.color)
                 g.FillRectangle(br, x0, 0, Math.Max(1, x1 - x0), H)
             End Using
         Next
 
-        Dim xCur As Integer = CInt(CDbl(_drawUpto) / Math.Max(1, N) * W)
+        ' playhead aligned to the same inner mapping
+        Dim xCur As Integer = left + CInt(CDbl(_drawUpto) / Math.Max(1, N) * innerW)
         Using pen As New Pen(Color.Black, 2.0F)
             g.DrawLine(pen, xCur, 0, xCur, H)
         End Using
     End Sub
+
+
+
+
 
     Private Sub ScrubTo(v As Integer)
         _drawUpto = Math.Max(0, Math.Min(v, _totalStitches))
@@ -303,19 +314,39 @@ Public Class StitchDisplay
         _progressBar.Invalidate()
     End Sub
 
-    Private Sub Timer_Tick(sender As Object, e As EventArgs)
+    'Private Sub Timer_Tick(sender As Object, e As EventArgs)
+    '    Dim remaining As Integer = Math.Max(0, _totalStitches - _drawUpto)
+    '    Dim spd As Integer
+    '    If _speed.Value >= _speed.Maximum Then
+    '        spd = Math.Max(remaining \ 8, 1) ' sprint
+    '    Else
+    '        spd = Math.Max(1, _speed.Value)
+    '    End If
+
+    '    ScrubTo(Math.Min(_track.Maximum, _track.Value + spd))
+    '    _track.Value = _drawUpto
+    '    If _drawUpto >= _track.Maximum Then _timer.Stop()
+    'End Sub
+
+
+    ' Timer_Tick
+    Private Sub t_Tick(sender As Object, e As EventArgs) Handles _timer.Tick
         Dim remaining As Integer = Math.Max(0, _totalStitches - _drawUpto)
-        Dim spd As Integer
-        If _speed.Value >= _speed.Maximum Then
-            spd = Math.Max(remaining \ 8, 1) ' sprint
-        Else
-            spd = Math.Max(1, _speed.Value)
+        If remaining = 0 Then
+            _timer.Stop()
+            Exit Sub
         End If
 
-        ScrubTo(Math.Min(_track.Maximum, _track.Value + spd))
-        _track.Value = _drawUpto
-        If _drawUpto >= _track.Maximum Then _timer.Stop()
+        ' CONSTANT stitches-per-tick, always based on current slider value
+        Dim spd As Integer = Math.Max(1, _speed.Value)
+
+        ' advance, clamped to remaining
+        Dim stepCount As Integer = Math.Min(spd, remaining)
+
+        ScrubTo(_drawUpto + stepCount)   ' your existing advance/draw
+        _track.Value = _drawUpto         ' keep the thumb in sync
     End Sub
+
 
     Private Sub RedrawFilteredTo(target As Control, pat As EmbPattern, visibleThreads As HashSet(Of Integer), upto As Integer)
         If pat Is Nothing OrElse target Is Nothing Then Return

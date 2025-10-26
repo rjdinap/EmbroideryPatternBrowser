@@ -104,6 +104,8 @@ Public Class ZoomPictureBox
         Invalidate()
     End Sub
 
+
+
     Protected Overrides Sub OnMouseDown(e As MouseEventArgs)
         MyBase.OnMouseDown(e)
         If e.Button = MouseButtons.Left Then
