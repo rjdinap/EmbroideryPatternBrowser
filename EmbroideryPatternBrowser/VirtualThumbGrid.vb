@@ -599,7 +599,6 @@ Public Class VirtualThumbGrid
                 _stitchDisplay.UpdatePattern(path)
             End If
         End If
-        ' <<< END NEW >>>
 
         ' Snapshot the current target client size (TabPage1 image box)
         Dim cs As Size = If(_fullImageTarget IsNot Nothing, _fullImageTarget.ClientSize, Size.Empty)

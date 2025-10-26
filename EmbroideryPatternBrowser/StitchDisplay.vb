@@ -25,13 +25,34 @@ Public Class StitchDisplay
     Private _margin As Integer = 20
     Private _currentPattern As EmbPattern
     Private WithEvents _timer As New System.Windows.Forms.Timer() With {.Interval = 16}
+    ' --- Incremental render cache ---
+    Private _frame As Bitmap = Nothing
+    Private _frameSize As Size = Size.Empty
+    Private _lastUpto As Integer = 0
+    Private _lastFilterKey As String = ""
+    Private _hasFitOnce As Boolean = False
+
+
 
     ' ---------- API ----------
     Public Sub New(rightPanel As Panel, bottomPanel As Panel, targetImageControl As Control)
         _rightPanel = rightPanel
         _bottomPanel = bottomPanel
         _target = targetImageControl
+
+        Dim z = TryCast(_target, ZoomPictureBox)
+        If z IsNot Nothing Then
+            AddHandler z.ZoomChanged, AddressOf OnTargetZoomChanged
+        End If
     End Sub
+
+
+    Private Sub OnTargetZoomChanged(newZoom As Single)
+        If _currentPattern Is Nothing Then Return
+        ' Re-render at the zoom-appropriate supersample (spp) without changing state
+        RedrawFilteredTo(_target, _currentPattern, _selectedColors, _drawUpto)
+    End Sub
+
 
     Public Sub BuildUI()
         ' ---- Right: color checklist ----
@@ -100,6 +121,26 @@ Public Class StitchDisplay
         If _rightPanel.Parent IsNot Nothing Then AddHandler _rightPanel.Parent.Resize, Sub() EnsureRightPanelFitsColorList()
     End Sub
 
+
+    Private Function CurrentFilterKey() As String
+        ' stable key for “what’s visible”
+        If _selectedColors Is Nothing OrElse _selectedColors.Count = 0 Then Return "-"
+        Dim arr = _selectedColors.OrderBy(Function(i) i).ToArray()
+        Return String.Join(",", arr)
+    End Function
+
+    Private Sub ResetFrame()
+        If _frame IsNot Nothing Then
+            Try : _frame.Dispose() : Catch : End Try
+        End If
+        _frame = Nothing
+        _frameSize = Size.Empty
+        _lastUpto = 0
+        _lastFilterKey = ""
+    End Sub
+
+
+
     ' Load by pattern path/name (string). Falls back gracefully on errors.
     Public Sub UpdatePattern(patternPathOrName As String)
         Dim pat As EmbPattern = Nothing
@@ -129,9 +170,12 @@ Public Class StitchDisplay
         _totalStitches = _currentPattern.Stitches.Count
         _track.Maximum = Math.Max(0, _totalStitches)
         _track.Value = 0
-        _drawUpto = 0
-        _lblProgress.Text = $"0 / {_totalStitches}"
+        'Default to FULLY DRAWN On open
+        _drawUpto = _totalStitches
+        _track.Value = _drawUpto
+        _lblProgress.Text = $"{_drawUpto} / {_totalStitches}"
         _bounds = RectangleF.Empty
+        ResetFrame()
 
         RedrawFilteredTo(_target, _currentPattern, _selectedColors, _drawUpto)
         EnsureRightPanelFitsColorList()
@@ -348,43 +392,95 @@ Public Class StitchDisplay
     End Sub
 
 
+    Private _frameSpp As Single = 1.0F  ' samples per pixel for current frame
+
     Private Sub RedrawFilteredTo(target As Control, pat As EmbPattern, visibleThreads As HashSet(Of Integer), upto As Integer)
         If pat Is Nothing OrElse target Is Nothing Then Return
-        Dim W = Math.Max(target.Width, 1), H = Math.Max(target.Height, 1)
 
+        Dim zpb = TryCast(target, ZoomPictureBox)
+        Dim zoom As Single = If(zpb Is Nothing, 1.0F, zpb.ZoomFactor)
+
+        ' Supersample factor tied to zoom (cap to protect perf/memory)
+        Dim spp As Single = Math.Max(1.0F, Math.Min(3.0F, zoom))
+        ' Rebuild the frame if spp "bucket" changed meaningfully
+        Dim sppChanged As Boolean = Math.Abs(spp - _frameSpp) > 0.15F
+
+        Dim W = Math.Max(target.Width, 1)
+        Dim H = Math.Max(target.Height, 1)
+
+        ' Compute pattern bounds once
         If _bounds.Width = 0 OrElse _bounds.Height = 0 Then
             _bounds = pat.ComputeBounds()
             If _bounds.Width <= 0 OrElse _bounds.Height <= 0 Then
-                SetTargetImage(New Bitmap(W, H)) : Return
+                ' pattern has no drawable bounds – show a blank once
+                If _frame Is Nothing Then
+                    _frame = New Bitmap(Math.Max(1, CInt(W * spp)), Math.Max(1, CInt(H * spp)))
+                    _frameSize = New Size(CInt(W * spp), CInt(H * spp))
+                    Using g = Graphics.FromImage(_frame) : g.Clear(Color.White) : End Using
+                    If zpb IsNot Nothing Then zpb.LogicalSourceSize = New SizeF(W, H)
+                    SetTargetImage(_frame, forceFit:=Not _hasFitOnce)
+                    _hasFitOnce = True
+                End If
+                target.Invalidate()
+                Return
             End If
         End If
 
-        Dim bmp As New Bitmap(W, H)
-        Using g = Graphics.FromImage(bmp)
-            g.Clear(Color.White)
-            g.SmoothingMode = Drawing2D.SmoothingMode.HighQuality
+        ' Do we need a full rebuild?
+        Dim desiredSize As New Size(Math.Max(1, CInt(W * spp)), Math.Max(1, CInt(H * spp)))
+        Dim sizeChanged As Boolean = (_frame Is Nothing) OrElse (_frameSize <> desiredSize)
+        Dim filterKey As String = CurrentFilterKey()
+        Dim goingBackwards As Boolean = (upto < _lastUpto)
 
-            Dim inner = New RectangleF(_margin, _margin, W - 2 * _margin, H - 2 * _margin)
-            Dim s As Single = Math.Min(inner.Width / _bounds.Width, inner.Height / _bounds.Height)
-            Dim ox As Single = inner.X - _bounds.Left * s
-            Dim oy As Single = inner.Y - _bounds.Top * s
+        If sizeChanged OrElse goingBackwards OrElse (filterKey <> _lastFilterKey) OrElse sppChanged Then
+            ResetFrame()
+            _frame = New Bitmap(desiredSize.Width, desiredSize.Height, Drawing.Imaging.PixelFormat.Format32bppPArgb)
+            _frameSize = desiredSize
+            _lastFilterKey = filterKey
+            _frameSpp = spp
+            Using g = Graphics.FromImage(_frame) : g.Clear(Color.White) : End Using
 
-            Dim n As Integer = Math.Min(Math.Max(0, upto), Math.Min(pat.Stitches.Count - 1, pat.StitchThreadIndices.Count - 1))
-            Dim threadsAvailable As Integer = pat.ThreadList.Count
-            Dim useFilter As Boolean = (threadsAvailable > 0)
+            If zpb IsNot Nothing Then zpb.LogicalSourceSize = New SizeF(W, H)
+            SetTargetImage(_frame, forceFit:=Not _hasFitOnce) ' fit only the very first time
+            _hasFitOnce = True
 
-            For i = 1 To n
+            _lastUpto = 0
+        End If
+
+        ' Precompute mapping in *logical* space
+        Dim inner = New RectangleF(_margin, _margin, W - 2 * _margin, H - 2 * _margin)
+        Dim s As Single = Math.Min(inner.Width / _bounds.Width, inner.Height / _bounds.Height)
+        Dim ox As Single = inner.X - _bounds.Left * s
+        Dim oy As Single = inner.Y - _bounds.Top * s
+
+        ' Clamp & draw only the new segment of stitches
+        Dim n As Integer = Math.Min(Math.Max(0, upto), Math.Min(pat.Stitches.Count - 1, pat.StitchThreadIndices.Count - 1))
+        Dim startI As Integer = Math.Max(1, _lastUpto)
+        If n < startI Then target.Invalidate() : Return
+
+        Dim threadsAvailable As Integer = pat.ThreadList.Count
+        Dim useFilter As Boolean = (threadsAvailable > 0)
+
+        Using g = Graphics.FromImage(_frame)
+            ' Render at supersampled resolution by scaling the logical coordinates
+            g.ScaleTransform(spp, spp)
+
+            ' High-quality thread look
+            g.SmoothingMode = Drawing2D.SmoothingMode.AntiAlias
+            g.PixelOffsetMode = Drawing2D.PixelOffsetMode.HighQuality
+            g.CompositingQuality = Drawing2D.CompositingQuality.HighQuality
+
+            ' Pen width in logical pixels; divide by spp because the transform scales widths
+            Dim basePW As Single = Math.Max(1.2F, 0.85F * s)
+            Dim maxPW As Single = 2.6F
+            Dim logicalPW As Single = Math.Min(maxPW, basePW) / spp
+
+            For i = startI To n
                 Dim tPrev = pat.StitchThreadIndices(i - 1)
                 Dim tThis = pat.StitchThreadIndices(i)
-
-                ' thread-change boundaries
                 If tThis <> tPrev Then Continue For
+                If (i < pat.BreakBefore.Count) AndAlso pat.BreakBefore(i) Then Continue For
 
-                ' skip breaks
-                Dim breakBefore As Boolean = (i < pat.BreakBefore.Count) AndAlso pat.BreakBefore(i)
-                If breakBefore Then Continue For
-
-                ' only apply the color filter if we actually have a thread list
                 If useFilter Then
                     If tThis < 0 OrElse tThis >= threadsAvailable Then Continue For
                     If Not visibleThreads.Contains(tThis) Then Continue For
@@ -392,19 +488,33 @@ Public Class StitchDisplay
 
                 Dim p0 = pat.Stitches(i - 1)
                 Dim p1 = pat.Stitches(i)
-                Dim col As Color = If(useFilter, pat.ThreadList(tThis).ColorValue, Color.Black)
 
-                Using pen As New Pen(col, 1.6F)
-                    g.DrawLine(pen, ox + p0.X * s, oy + p0.Y * s, ox + p1.X * s, oy + p1.Y * s)
+                Dim x0 As Single = ox + p0.X * s
+                Dim y0 As Single = oy + p0.Y * s
+                Dim x1 As Single = ox + p1.X * s
+                Dim y1 As Single = oy + p1.Y * s
+
+                Dim col As Color = If(useFilter, pat.ThreadList(tThis).ColorValue, Color.Black)
+                Using pen As New Pen(col, logicalPW)
+                    pen.StartCap = Drawing2D.LineCap.Round
+                    pen.EndCap = Drawing2D.LineCap.Round
+                    pen.LineJoin = Drawing2D.LineJoin.Round
+                    g.DrawLine(pen, x0, y0, x1, y1)
                 End Using
             Next
         End Using
 
-        SetTargetImage(bmp)
+        _lastUpto = n
+        target.Invalidate()
     End Sub
 
+
+
+
     ' Assigns image to PictureBox/ZoomPictureBox (or any control with an Image property); calls FitToWindow() if available.
-    Private Sub SetTargetImage(img As Image)
+    ' Assigns image to PictureBox/ZoomPictureBox (or any control with an Image property).
+    ' If forceFit:=True and target is a ZoomPictureBox, FitToWindow() will be called once.
+    Private Sub SetTargetImage(img As Image, Optional forceFit As Boolean = False)
         If _target Is Nothing Then
             Try : img?.Dispose() : Catch : End Try
             Return
@@ -420,17 +530,20 @@ Public Class StitchDisplay
         Catch
         End Try
 
-        ' If ZoomPictureBox, fit to window so first render isn't zoomed strangely
-        Try
-            Dim m = _target.GetType().GetMethod("FitToWindow", Type.EmptyTypes)
-            If m IsNot Nothing Then m.Invoke(_target, Nothing)
-        Catch
-        End Try
+        ' Fit only when explicitly requested (first-time attach)
+        If forceFit Then
+            Try
+                Dim m = _target.GetType().GetMethod("FitToWindow", Type.EmptyTypes)
+                If m IsNot Nothing Then m.Invoke(_target, Nothing)
+            Catch
+            End Try
+        End If
 
         If oldImg IsNot Nothing AndAlso Not Object.ReferenceEquals(oldImg, img) Then
             Try : oldImg.Dispose() : Catch : End Try
         End If
     End Sub
+
 
     ' ---------- Sizing helpers ----------
     Private Sub ResizeColorRows()

@@ -5,20 +5,18 @@ Public Class ZoomPictureBox
     Inherits Control
 
     Private _image As Image
-    Private _zoom As Double = 1.0      ' current zoom (1.0 = 100%)
     Private _pan As PointF = PointF.Empty
     Private _panning As Boolean = False
     Private _lastMouse As Point
+    Public Event ZoomChanged(ByVal newZoom As Single)
+    Private _zoom As Single = 1.0F
+    Public Property LogicalSourceSize As SizeF = SizeF.Empty
 
-    Public Property Image As Image
+
+    Public ReadOnly Property ZoomFactor As Single
         Get
-            Return _image
+            Return _zoom
         End Get
-        Set(value As Image)
-            _image = value
-            FitToWindow()
-            Invalidate()
-        End Set
     End Property
 
     Public Property Zoom As Double
@@ -26,10 +24,25 @@ Public Class ZoomPictureBox
             Return _zoom
         End Get
         Set(value As Double)
-            _zoom = Math.Max(0.01, Math.Min(100.0, value))
-            Invalidate()
+            If value <= 0 Then value = 0.01F
+            If Math.Abs(_zoom - value) > 0.0001F Then
+                _zoom = value
+                RaiseEvent ZoomChanged(_zoom)
+                Invalidate()
+            End If
         End Set
     End Property
+
+   Public Property Image As Image
+    Get
+        Return _image
+    End Get
+    Set(value As Image)
+        _image = value
+            Invalidate()
+        End Set
+End Property
+
 
     Public Sub New()
         SetStyle(ControlStyles.AllPaintingInWmPaint Or
@@ -43,35 +56,56 @@ Public Class ZoomPictureBox
     ' Fit the image fully inside the control (no up-scale)
     Public Sub FitToWindow()
         If _image Is Nothing OrElse ClientSize.Width <= 0 OrElse ClientSize.Height <= 0 Then Return
-        Dim sx = ClientSize.Width / CDbl(_image.Width)
-        Dim sy = ClientSize.Height / CDbl(_image.Height)
+
+        ' Use logical size if provided (stitches pane), else fall back to image size.
+        Dim srcW As Double = If(Not LogicalSourceSize.IsEmpty, LogicalSourceSize.Width, _image.Width)
+        Dim srcH As Double = If(Not LogicalSourceSize.IsEmpty, LogicalSourceSize.Height, _image.Height)
+
+        Dim sx = ClientSize.Width / srcW
+        Dim sy = ClientSize.Height / srcH
         _zoom = Math.Min(1.0, Math.Min(sx, sy))
-        ' center it
-        Dim imgW = _image.Width * _zoom
-        Dim imgH = _image.Height * _zoom
+
+        ' center using the same logical size that determined zoom
+        Dim imgW = CSng(srcW * _zoom)
+        Dim imgH = CSng(srcH * _zoom)
         _pan = New PointF((ClientSize.Width - imgW) / 2.0F, (ClientSize.Height - imgH) / 2.0F)
         Invalidate()
     End Sub
 
+    'Protected Overrides Sub OnPaint(e As PaintEventArgs)
+    '    MyBase.OnPaint(e)
+    '    If Me.Image Is Nothing Then Return
+
+    '    Dim g = e.Graphics
+
+    '    e.Graphics.InterpolationMode = Drawing2D.InterpolationMode.HighQualityBicubic
+    '    e.Graphics.SmoothingMode = Drawing2D.SmoothingMode.HighQuality
+    '    e.Graphics.PixelOffsetMode = Drawing2D.PixelOffsetMode.Default
+    '    e.Graphics.CompositingQuality = Drawing2D.CompositingQuality.HighQuality
+
+    '    Dim dest = New RectangleF(_pan.X, _pan.Y, CSng(_image.Width * _zoom), CSng(_image.Height * _zoom))
+    '    e.Graphics.DrawImage(_image, dest)
+    'End Sub
+
     Protected Overrides Sub OnPaint(e As PaintEventArgs)
         MyBase.OnPaint(e)
-        e.Graphics.Clear(BackColor)
+        If Me.Image Is Nothing Then Return
 
-        If _image Is Nothing Then
-            Using f = New Font(Font, FontStyle.Italic)
-                TextRenderer.DrawText(e.Graphics, "No image", f, ClientRectangle, Color.Gray,
-                                      TextFormatFlags.HorizontalCenter Or TextFormatFlags.VerticalCenter)
-            End Using
-            Return
-        End If
+        Dim g = e.Graphics
+        g.InterpolationMode = Drawing2D.InterpolationMode.HighQualityBicubic
+        g.SmoothingMode = Drawing2D.SmoothingMode.HighQuality
+        g.PixelOffsetMode = Drawing2D.PixelOffsetMode.HighQuality
+        g.CompositingQuality = Drawing2D.CompositingQuality.HighQuality
 
-        e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic
-        e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality
+        ' Draw to the *logical* size so we can supply a higher-res backing bitmap
+        Dim lw As Single = If(LogicalSourceSize.IsEmpty, Me.Image.Width, LogicalSourceSize.Width)
+        Dim lh As Single = If(LogicalSourceSize.IsEmpty, Me.Image.Height, LogicalSourceSize.Height)
 
-        ' Destination rectangle based on zoom + pan
-        Dim dest = New RectangleF(_pan.X, _pan.Y, CSng(_image.Width * _zoom), CSng(_image.Height * _zoom))
-        e.Graphics.DrawImage(_image, dest)
+        Dim dest = New RectangleF(_pan.X, _pan.Y, lw * _zoom, lh * _zoom)
+        g.DrawImage(Me.Image, dest)
     End Sub
+
+
 
     Protected Overrides Sub OnMouseWheel(e As MouseEventArgs)
         MyBase.OnMouseWheel(e)
@@ -86,21 +120,18 @@ Public Class ZoomPictureBox
     End Sub
 
     Private Sub ZoomAt(mouseClient As Point, factor As Double)
-        ' Keep the point under the cursor stable while zooming
         Dim oldZoom = _zoom
         Dim newZoom = Math.Max(0.01, Math.Min(100.0, oldZoom * factor))
         If Math.Abs(newZoom - oldZoom) < 0.0001 Then Return
 
-        ' Convert mouse point to image-space coordinates before zoom
         Dim imgX As Double = (mouseClient.X - _pan.X) / oldZoom
         Dim imgY As Double = (mouseClient.Y - _pan.Y) / oldZoom
 
         _zoom = newZoom
+        RaiseEvent ZoomChanged(_zoom)   ' <-- add this
 
-        ' Recompute pan so the same image point stays under the cursor
         _pan.X = CSng(mouseClient.X - imgX * _zoom)
         _pan.Y = CSng(mouseClient.Y - imgY * _zoom)
-
         Invalidate()
     End Sub
 

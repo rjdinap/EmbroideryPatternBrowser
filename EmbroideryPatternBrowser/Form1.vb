@@ -154,7 +154,7 @@ Public Class Form1
             Panel_Main_Fill.Controls.Clear()
             Panel_Main_Fill.Controls.Add(grid)
 
-            grid.Bind(dt, AddressOf CreateImageFromPatternWrapper, PictureBox_FullImage, AddressOf SaveMetadataToDb, StitchDisplay:=_dlg)
+            grid.Bind(dt, AddressOf CreateImageFromPatternWrapper, PictureBox_FullImage, AddressOf SaveMetadataToDb, stitchDisplay:=_dlg)
             grid.Focus()
         Catch ex As Exception
             Logger.Error(ex.Message, ex.StackTrace.ToString)
@@ -542,7 +542,6 @@ Public Class Form1
 
 
 End Class
-
 
 
 
