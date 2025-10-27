@@ -101,9 +101,9 @@ Public Class Form1
 
         Try
             ' Run heavy DB open OFF the UI thread
-            Await Task.Run(Sub()
-                               SQLiteOperations.InitializeSQLite(databaseName)
-                           End Sub)
+            'Await Task.Run(Sub()
+            SQLiteOperations.InitializeSQLite(databaseName)
+            ' End Sub)
             Logger.Info("Database ready: " & databaseName)
 
         Catch ex As Exception

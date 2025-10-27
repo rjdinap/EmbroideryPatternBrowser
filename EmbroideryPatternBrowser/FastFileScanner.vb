@@ -137,7 +137,6 @@ Public Module FastFileScanner
         Next
 
 
-
         swDirs.Stop()
         stats.DirsScanned = allDirs.Count
         progressCallback?.Invoke("Directory enumeration complete", CInt(stats.DirsScanned), CInt(stats.DirsScanned))
@@ -179,10 +178,9 @@ Public Module FastFileScanner
 
                 ' Prepare commands once (no ambient transaction yet)
                 Dim upsertSql As String =
-                "INSERT INTO files(fullpath, filename, ext, size, metadata)
- VALUES(@p,@f,@e,@s, COALESCE(NULLIF(@m,''), (SELECT metadata FROM files WHERE fullpath=@p)))
+                "INSERT INTO files(fullpath, ext, size, metadata)
+ VALUES(@p,@e,@s, COALESCE(NULLIF(@m,''), (SELECT metadata FROM files WHERE fullpath=@p)))
 ON CONFLICT(fullpath) DO UPDATE SET
- filename=excluded.filename,
  ext=excluded.ext,
  size=excluded.size,
  metadata=COALESCE(NULLIF(excluded.metadata,''), files.metadata);"
@@ -191,7 +189,6 @@ ON CONFLICT(fullpath) DO UPDATE SET
                       cmdDelete As New SQLiteCommand("DELETE FROM files WHERE fullpath=@p;", conn)
 
                     Dim pP = cmdUpsert.Parameters.Add("@p", System.Data.DbType.String)
-                    Dim pF = cmdUpsert.Parameters.Add("@f", System.Data.DbType.String)
                     Dim pE = cmdUpsert.Parameters.Add("@e", System.Data.DbType.String)
                     Dim pS = cmdUpsert.Parameters.Add("@s", System.Data.DbType.Int64)
                     Dim pM = cmdUpsert.Parameters.Add("@m", System.Data.DbType.String)
@@ -254,6 +251,7 @@ ON CONFLICT(fullpath) DO UPDATE SET
                     Dim perRootAdd As Integer = 0
                     Dim perRootUpd As Integer = 0
 
+                    progressCallback?.Invoke("Beginning: check directories for files", 0, 0)
                     ' Enumerate & process per directory
                     For i As Integer = 0 To theseDirs.Count - 1
                         If cancel.IsCancellationRequested Then Exit For
@@ -275,7 +273,7 @@ ON CONFLICT(fullpath) DO UPDATE SET
                         For Each f In found
                             BeginTx()
 
-                            If String.Equals(f.Ext, ".zip", StringComparison.OrdinalIgnoreCase) Then
+                            If String.Equals(f.Ext, "zip", StringComparison.OrdinalIgnoreCase) Then
                                 ' Expand zip entries (unchanged from your code)
                                 Dim zipFound = zp.ScanZipForFileNames(f.FullPath)
                                 For Each z In zipFound
@@ -287,14 +285,14 @@ ON CONFLICT(fullpath) DO UPDATE SET
                                     If hadPrev Then
                                         existing.Remove(storedPath)
                                         If prev.Size <> z.Size Then
-                                            pP.Value = storedPath : pF.Value = fileName
+                                            pP.Value = storedPath
                                             pE.Value = z.Ext.TrimStart("."c) : pS.Value = z.Size
                                             pM.Value = "" : cmdUpsert.ExecuteNonQuery()
                                             perRootUpd += 1 : opsInTx += 1
                                             EnsureBatchCommit()
                                         End If
                                     Else
-                                        pP.Value = storedPath : pF.Value = fileName
+                                        pP.Value = storedPath
                                         pE.Value = z.Ext.TrimStart("."c) : pS.Value = z.Size
                                         pM.Value = "" : cmdUpsert.ExecuteNonQuery()
                                         perRootAdd += 1 : opsInTx += 1
@@ -314,13 +312,13 @@ ON CONFLICT(fullpath) DO UPDATE SET
                             If hadPrev2 Then
                                 existing.Remove(stored)
                                 If prev2.Size <> f.Size Then
-                                    pP.Value = stored : pF.Value = name : pE.Value = f.Ext
+                                    pP.Value = stored : pE.Value = f.Ext
                                     pS.Value = f.Size : pM.Value = "" : cmdUpsert.ExecuteNonQuery()
                                     perRootUpd += 1 : opsInTx += 1
                                     EnsureBatchCommit()
                                 End If
                             Else
-                                pP.Value = stored : pF.Value = name : pE.Value = f.Ext
+                                pP.Value = stored : pE.Value = f.Ext
                                 pS.Value = f.Size : pM.Value = "" : cmdUpsert.ExecuteNonQuery()
                                 perRootAdd += 1 : opsInTx += 1
                                 EnsureBatchCommit()
@@ -344,6 +342,9 @@ ON CONFLICT(fullpath) DO UPDATE SET
                             dP.Value = kv.Key
                             cmdDelete.ExecuteNonQuery()
                             opsInTx += 1 : delOps += 1
+                            If (delOps Mod 200) = 0 Then
+                                progressCallback?.Invoke("Removing entries…", delOps, theseDirs.Count)
+                            End If
                             EnsureBatchCommit()
                         Next
                     End If

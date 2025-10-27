@@ -15,7 +15,6 @@
     ' === Thumbnail quality UI (created at runtime so no designer edits needed) ===
     Private lblThumbQuality As Label
     Private cboThumbQuality As ComboBox
-    Private chkBgMaint As CheckBox
 
     Public Sub New()
         Me.Text = "Options"
@@ -36,21 +35,12 @@
     }
         Controls.Add(chkZip)
 
-        ' --- Background DB maintenance checkbox (under the ZIP checkbox) ---
-        chkBgMaint = New CheckBox() With {
-    .Text = "Background Database Maintenance?",
-    .Left = 16,
-    .Top = chkZip.Bottom + 6,
-    .Width = 300,
-    .Name = "chkBackgroundMaintenance"
-}
-        Controls.Add(chkBgMaint)
 
         ' --- Thumbnails group ---
         grpThumb = New GroupBox() With {
         .Text = "Thumbnail Image Size",
         .Left = 12,
-        .Top = chkBgMaint.Bottom + 12,
+        .Top = chkZip.Bottom + 12,
         .Width = 496,
         .Height = 120
     }
@@ -155,15 +145,6 @@
         End If
         cboThumbQuality.SelectedItem = q
 
-        ' Background maintenance (default True if missing)
-        If My.Settings.BackgroundDatabaseMaintenance = False AndAlso
-           My.Settings.Properties("BackgroundDatabaseMaintenance") Is Nothing Then
-            ' property not present yet; treat as default True
-            chkBgMaint.Checked = True
-        Else
-            chkBgMaint.Checked = My.Settings.BackgroundDatabaseMaintenance
-        End If
-
     End Sub
 
 
@@ -192,8 +173,6 @@
         Dim selected As String = If(TryCast(cboThumbQuality.SelectedItem, String), Nothing)
         If String.IsNullOrWhiteSpace(selected) Then selected = "Fast"
         My.Settings.ThumbnailQuality = selected
-        'background database maintenance
-        My.Settings.BackgroundDatabaseMaintenance = chkBgMaint.Checked
 
         ' Persist
         My.Settings.Save()

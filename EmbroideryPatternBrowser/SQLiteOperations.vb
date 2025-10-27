@@ -1,5 +1,6 @@
 ﻿Imports System.Collections.Concurrent
 Imports System.Data.SQLite
+Imports System.IO
 Imports System.Text
 Imports System.Threading
 
@@ -23,6 +24,11 @@ Module SQLiteOperations
     ' Backpressure
     Private _maxQueueInMemory As Integer = 1_000_000
     Private _queuedCount As Integer = 0
+    ' long lived readers
+    Private _readConn As SQLiteConnection
+    Private _searchCmd As SQLiteCommand          ' no ext filter
+    Private _searchCmdExt As SQLiteCommand       ' with ext filter
+    Private _legacyDetected As Boolean = False
 
     ' ---- DTO ----
     Public Class FileRecord
@@ -47,9 +53,29 @@ Module SQLiteOperations
             Throw New InvalidOperationException("Please choose a database path under a non-system folder (e.g., Documents).")
         End If
 
+
         _dbPath = dbFilePath
         _batchSize = Math.Max(1000, batchSize)
         _optimizeOnStop = optimizeOnStop
+
+
+        ' after opening a temp connection early in InitializeSQLite:
+        Using testConn As SQLiteConnection = OpenConnection(_dbPath, True, True, True)
+            If testConn IsNot Nothing Then
+                If IsLegacyDatabase(testConn) Then
+                    _legacyDetected = True
+                    Logger.Error("Database schema is no longer supported.", "")
+                    Try : StatusProgress.ClosePopup() : Catch : End Try
+                    MessageBox.Show("This database is from an older version and can’t be used." & Environment.NewLine &
+                            "Please go to: File → Create New Database, then Tools → Scan for images.",
+                            "Database Upgrade Required", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                    Form1.databaseName = ""
+                    Form1.TextBox_Database.Text = "No Database Opened."
+                    ' fail init on purpose
+                    Throw New InvalidOperationException("Legacy database schema detected.")
+                End If
+            End If
+        End Using
 
         Try
             Form1.databaseName = dbFilePath
@@ -73,7 +99,7 @@ Module SQLiteOperations
             Logger.Debug($"Open: conn.Open in {sw.ElapsedMilliseconds} ms")
             EnsureFts5Available(conn)
             Logger.Debug($"Open: FTS5 probe in {sw.ElapsedMilliseconds} ms total")
-            CreateSchema(conn, created)
+            CreateSchema(conn)
             Logger.Debug($"Open: schema check in {sw.ElapsedMilliseconds} ms total")
         End Using
 
@@ -84,11 +110,92 @@ Module SQLiteOperations
         }
         _started = True
         _insertThread.Start()
+        'setup search statement
+        PrepareReadOnlySearch()
 
     End Sub
 
+
+    'reusable prepared search statement for speed
+    Private Sub PrepareReadOnlySearch()
+        ' Dispose old
+        Try : _searchCmd?.Dispose() : Catch : End Try
+        Try : _searchCmdExt?.Dispose() : Catch : End Try
+        Try : _readConn?.Dispose() : Catch : End Try
+
+        ' Use existing _dbPath via BuildConnStr()
+        _readConn = New SQLiteConnection(BuildConnStr())
+        _readConn.Open()
+
+        ' Read-optimized PRAGMAs
+        Using c As New SQLiteCommand(
+        "PRAGMA query_only=ON; " &
+        "PRAGMA busy_timeout=" & _busyTimeoutMs & "; " &
+        "PRAGMA temp_store=MEMORY; " &
+        "PRAGMA cache_size=-131072; " &        ' ≈128MB
+        "PRAGMA mmap_size=268435456;",         ' 256MB
+        _readConn)
+            c.ExecuteNonQuery()
+        End Using
+
+        ' Prepared search commands (NO 3rd-arg overload!)
+        Dim sqlBase As String =
+"SELECT f.fullpath, f.ext, f.size, f.metadata
+   FROM files_fts
+   JOIN files AS f NOT INDEXED ON f.rowid = files_fts.rowid
+  WHERE files_fts MATCH @kw;"
+
+        Dim sqlWithExt As String =
+"SELECT f.fullpath, f.ext, f.size, f.metadata
+   FROM files_fts
+   JOIN files AS f NOT INDEXED ON f.rowid = files_fts.rowid
+  WHERE files_fts MATCH @kw
+    AND f.ext = @ext;"
+
+        _searchCmd = New SQLiteCommand(sqlBase, _readConn)
+        _searchCmd.Parameters.Add(New SQLiteParameter("@kw", DbType.String))
+
+        _searchCmdExt = New SQLiteCommand(sqlWithExt, _readConn)
+        _searchCmdExt.Parameters.Add(New SQLiteParameter("@kw", DbType.String))
+        _searchCmdExt.Parameters.Add(New SQLiteParameter("@ext", DbType.String))
+        LogPlanForPrepared(_searchCmd, "cat")
+        LogPlanForPrepared(_searchCmdExt, "cat", "pes")
+    End Sub
+
+    ' Quote a literal for ad-hoc EXPLAIN text (debug only)
+    Private Function SqlQuote(s As String) As String
+        If s Is Nothing Then Return "NULL"
+        Return "'" & s.Replace("'", "''") & "'"
+    End Function
+
+    ' Log an EXPLAIN QUERY PLAN for a raw SQL string (must include literals)
+    Private Sub LogPlan(sql As String)
+        Using c As New SQLiteCommand("EXPLAIN QUERY PLAN " & sql, _readConn)
+            Using r = c.ExecuteReader()
+                While r.Read()
+                    Logger.Debug("PLAN: " & r(3).ToString(), "")
+                End While
+            End Using
+        End Using
+    End Sub
+
+    ' Convenience: log the plan for one of our prepared search commands
+    Private Sub LogPlanForPrepared(cmd As SQLiteCommand, kw As String, Optional ext As String = Nothing)
+        Dim sql As String = cmd.CommandText
+        ' inject sample literals for EXPLAIN (debug only)
+        sql = sql.Replace("@kw", SqlQuote(kw))
+        If sql.Contains("@ext") Then
+            sql = sql.Replace("@ext", SqlQuote(If(ext, "")))
+        End If
+        LogPlan(sql)
+    End Sub
+
+
     Public Sub CloseSQLite()
         StopInsertThread()
+        Try : _searchCmd?.Dispose() : Catch : End Try
+        Try : _searchCmdExt?.Dispose() : Catch : End Try
+        Try : _readConn?.Dispose() : Catch : End Try
         _dbPath = ""
     End Sub
 
@@ -131,44 +238,28 @@ Module SQLiteOperations
         Return SearchSQLite(q, keyword2)
     End Function
 
-    Public Function SearchSQLite(keyword As String, Optional keyword2 As String = Nothing) As DataTable
+    Public Function SearchSQLite(keyword As String, Optional ext As String = Nothing) As DataTable
+        If _readConn Is Nothing Then Return New DataTable()
+
+        ' No column qualifiers with detail=none
+        Dim match As String = keyword
+
         Dim dt As New DataTable()
-        If String.IsNullOrWhiteSpace(_dbPath) Then Return dt
-
-        Dim sql As String
-        If String.IsNullOrWhiteSpace(keyword2) Then
-            sql = "SELECT f.fullpath, f.filename, f.ext, f.size, f.metadata " &
-                  "FROM files f JOIN files_fts fts ON f.rowid = fts.rowid " &
-                  "WHERE files_fts MATCH @kw;"
-        Else
-            sql = "SELECT f.fullpath, f.filename, f.ext, f.size, f.metadata " &
-                  "FROM files f JOIN files_fts fts ON f.rowid = fts.rowid " &
-                  "WHERE files_fts MATCH @kw AND files_fts MATCH @kw2;"
-        End If
-
-        Try
-            Using conn As New SQLiteConnection(BuildConnStr())
-                conn.Open()
-                ExecPragma(conn, "busy_timeout", _busyTimeoutMs.ToString())
-
-                Using cmd As New SQLiteCommand(sql, conn)
-                    cmd.Parameters.Add("@kw", DbType.String).Value =
-                        String.Format("(fullpath:{0} OR metadata:{0})", keyword)
-                    If Not String.IsNullOrWhiteSpace(keyword2) Then
-                        cmd.Parameters.Add("@kw2", DbType.String).Value =
-                            String.Format("ext:{0}", keyword2.TrimStart("."c))
-                    End If
-                    Using da As New SQLiteDataAdapter(cmd)
-                        da.Fill(dt)
-                    End Using
-                End Using
+        If Not String.IsNullOrWhiteSpace(ext) Then
+            _searchCmdExt.Parameters("@kw").Value = match
+            _searchCmdExt.Parameters("@ext").Value = ext.Trim().TrimStart("."c).ToLowerInvariant()
+            Using r = _searchCmdExt.ExecuteReader(CommandBehavior.SequentialAccess)
+                dt.Load(r)
             End Using
-        Catch ex As Exception
-            Logger.Error(ex.Message, ex.StackTrace)
-            MsgBox("SQLite search error: " & ex.Message, MsgBoxStyle.Exclamation, "SQLite Search")
-        End Try
+        Else
+            _searchCmd.Parameters("@kw").Value = match
+            Using r = _searchCmd.ExecuteReader(CommandBehavior.SequentialAccess)
+                dt.Load(r)
+            End Using
+        End If
         Return dt
     End Function
+
 
 
 
@@ -196,49 +287,19 @@ Module SQLiteOperations
 
 
     ' ---------- Update single row metadata ----------
-    Public Function UpdateMetadataRow(row As DataRow, newMetadata As String) As Boolean
-        If row Is Nothing Then Return False
-        If String.IsNullOrWhiteSpace(_dbPath) Then Return False
-
-        Dim fullPath As String = TryCast(row("fullpath"), String)
-        If String.IsNullOrWhiteSpace(fullPath) Then Return False
-
-        Dim filename As String = TryCast(row("filename"), String)
-        Dim ext As String = TryCast(row("ext"), String)
-        Dim sizeVal As Long = 0
+   Public Function UpdateMetadataRow(row As DataRow, newMetadata As String) As Boolean
         Try
-            If Not Convert.IsDBNull(row("size")) Then sizeVal = Convert.ToInt64(row("size"))
-        Catch
-            sizeVal = 0
-        End Try
+            Dim path As String = row("fullpath")
+            If String.IsNullOrEmpty(path) Then Return False
 
-        Try
-            Using conn As New SQLiteConnection(BuildConnStr())
-                conn.Open()
-                ExecPragma(conn, "busy_timeout", _busyTimeoutMs.ToString())
-
-                Dim sql As String =
-                "INSERT INTO files(fullpath, filename, ext, size, metadata)
-                VALUES(@p, @f, @e, @s, @m)
-                ON CONFLICT(fullpath) DO UPDATE SET
-                filename = excluded.filename,
-                ext      = excluded.ext,
-                size     = excluded.size,
-                metadata = excluded.metadata;"
-
-                Using cmd As New SQLiteCommand(sql, conn)
-                    cmd.Parameters.Add("@p", DbType.String).Value = fullPath
-                    cmd.Parameters.Add("@f", DbType.String).Value = If(String.IsNullOrEmpty(filename), IO.Path.GetFileName(fullPath), filename)
-                    cmd.Parameters.Add("@e", DbType.String).Value = If(ext, "")
-                    cmd.Parameters.Add("@s", DbType.Int64).Value = sizeVal
-                    Dim trimmed As String = If(newMetadata, "")
-                    Dim valueOrNull As Object = If(String.IsNullOrWhiteSpace(trimmed), DBNull.Value, CType(trimmed, Object))
-                    cmd.Parameters.Add("@m", DbType.String).Value = valueOrNull
-                    cmd.ExecuteNonQuery()
+            Using conn As SQLiteConnection = OpenConnection(_dbPath, True, True, True)
+                Using cmd As New SQLiteCommand("UPDATE files SET metadata=@m WHERE fullpath=@p;", conn)
+                    cmd.Parameters.AddWithValue("@m", If(newMetadata, ""))
+                    cmd.Parameters.AddWithValue("@p", path)
+                    Dim n = cmd.ExecuteNonQuery()
+                    Return (n > 0)
                 End Using
             End Using
-
-            Return True
         Catch ex As Exception
             Logger.Error(ex.Message, ex.StackTrace)
             MsgBox("SQLite metadata update error: " & ex.Message, MsgBoxStyle.Exclamation, "SQLite")
@@ -247,74 +308,55 @@ Module SQLiteOperations
     End Function
 
     ' ---------- Schema ----------
-    Private Sub CreateSchema(conn As SQLiteConnection, created As Boolean)
-        Using cmd As New SQLiteCommand(conn)
+    Private Sub CreateSchema(conn As SQLiteConnection)
+        Using cmd As New SQLiteCommand()
+            cmd.Connection = conn
             cmd.CommandText =
-"CREATE TABLE IF NOT EXISTS files(
-  fullpath  TEXT PRIMARY KEY,
-  filename  TEXT NOT NULL,
-  ext       TEXT,
-  size      INTEGER NOT NULL,
-  metadata  TEXT
-);"
+"BEGIN;
+
+CREATE TABLE IF NOT EXISTS files(
+    fullpath TEXT PRIMARY KEY,
+    ext      TEXT,            -- normalized w/o dot (e.g., 'pes')
+    size     INTEGER,         -- used for change detection
+    metadata TEXT
+);
+
+-- FTS5: only the searchable text, no per-position detail to shrink I/O
+CREATE VIRTUAL TABLE IF NOT EXISTS files_fts USING fts5(
+    fullpath,       -- kept to allow fielded search; stored as text
+    metadata,                 -- fulltext
+    content='files',
+    content_rowid='rowid',
+    tokenize = 'unicode61 remove_diacritics 2',
+    prefix = '2 3 4 5',
+    detail = 'none'
+);
+
+-- FTS triggers (mirror content from base table)
+CREATE TRIGGER IF NOT EXISTS files_ai AFTER INSERT ON files BEGIN
+  INSERT INTO files_fts(rowid, fullpath, metadata)
+  VALUES (new.rowid, new.fullpath, COALESCE(new.metadata,''));
+END;
+CREATE TRIGGER IF NOT EXISTS files_ad AFTER DELETE ON files BEGIN
+  INSERT INTO files_fts(files_fts, rowid, fullpath, metadata) VALUES('delete', old.rowid, old.fullpath, COALESCE(old.metadata,''));
+END;
+CREATE TRIGGER IF NOT EXISTS files_au AFTER UPDATE ON files BEGIN
+  INSERT INTO files_fts(files_fts, rowid, fullpath, metadata) VALUES('delete', old.rowid, old.fullpath, COALESCE(old.metadata,''));
+  INSERT INTO files_fts(rowid, fullpath, metadata) VALUES (new.rowid, new.fullpath, COALESCE(new.metadata,''));
+END;
+
+-- fast ext filter
+CREATE INDEX IF NOT EXISTS idx_files_ext ON files(ext);
+
+COMMIT;"
             cmd.ExecuteNonQuery()
         End Using
 
-        Using cmd As New SQLiteCommand(conn)
-            cmd.CommandText =
-"CREATE VIRTUAL TABLE IF NOT EXISTS files_fts USING fts5(
-  fullpath, filename, ext, metadata,
-  content='files', content_rowid='rowid',
-  tokenize='unicode61', prefix='2 3 4 5 6'
-);"
-            cmd.ExecuteNonQuery()
-        End Using
-
-        Using cmd As New SQLiteCommand(conn)
-            cmd.CommandText = "DROP TRIGGER IF EXISTS files_ai;"
-            cmd.ExecuteNonQuery()
-            cmd.CommandText = "DROP TRIGGER IF EXISTS files_au;"
-            cmd.ExecuteNonQuery()
-            cmd.CommandText = "DROP TRIGGER IF EXISTS files_ad;"
-            cmd.ExecuteNonQuery()
-        End Using
-
-
-
-        ' Triggers mirror files -> files_fts
-        Using cmd As New SQLiteCommand(conn)
-            cmd.CommandText =
-"CREATE TRIGGER IF NOT EXISTS files_ai AFTER INSERT ON files BEGIN
-  INSERT INTO files_fts(rowid, fullpath, filename, ext, metadata)
-  VALUES (new.rowid, new.fullpath, new.filename, new.ext, new.metadata);
-END;"
-            cmd.ExecuteNonQuery()
-        End Using
-
-        Using cmd As New SQLiteCommand(conn)
-            cmd.CommandText =
-"CREATE TRIGGER IF NOT EXISTS files_ad AFTER DELETE ON files BEGIN
-  INSERT INTO files_fts(files_fts, rowid, fullpath) VALUES('delete', old.rowid, old.fullpath);
-END;"
-            cmd.ExecuteNonQuery()
-        End Using
-
-        Using cmd As New SQLiteCommand(conn)
-            cmd.CommandText =
-"CREATE TRIGGER IF NOT EXISTS files_au AFTER UPDATE ON files BEGIN
-  INSERT INTO files_fts(files_fts, rowid, fullpath, filename, ext, metadata) 
-  VALUES('delete', old.rowid, old.fullpath, old.filename, old.ext, old.metadata);
-  INSERT INTO files_fts(rowid, fullpath, filename, ext, metadata)
-  VALUES (new.rowid, new.fullpath, new.filename, new.ext, new.metadata);
-END;"
-            cmd.ExecuteNonQuery()
-        End Using
-
-        ' Index for range scans
-        Using cmd As New SQLiteCommand("CREATE INDEX If Not EXISTS idx_files_fullpath On files(fullpath);", conn)
-            cmd.ExecuteNonQuery()
-        End Using
+        ' Versioning / identity
+        ExecPragma(conn, "application_id", "1163418673") ' "EPB1" as 0x45504231
+        ExecPragma(conn, "user_version", "2")
     End Sub
+
 
 
     ' ---------- Ensure FTS5 ----------
@@ -379,7 +421,7 @@ END;"
 
         If aggressivePragmas Then
             ExecPragma(conn, "temp_store", "MEMORY")
-            If created Then ExecPragma(conn, "page_size", "4096")
+            If created Then ExecPragma(conn, "page_size", "8192")
         End If
         Return conn
     End Function
@@ -429,17 +471,15 @@ END;"
             ExecPragma(conn, "temp_store", "MEMORY")
 
             Dim sqlUpsert As String =
-"INSERT INTO files(fullpath, filename, ext, size, metadata)
- VALUES(@p,@f,@e,@s, COALESCE(NULLIF(@m,''), (SELECT metadata FROM files WHERE fullpath=@p)))
+"INSERT INTO files(fullpath, ext, size, metadata)
+ VALUES(@p,@e,@s, COALESCE(NULLIF(@m,''), (SELECT metadata FROM files WHERE fullpath=@p)))
 ON CONFLICT(fullpath) DO UPDATE SET
- filename=excluded.filename,
  ext=excluded.ext,
  size=excluded.size,
  metadata=COALESCE(NULLIF(excluded.metadata,''), files.metadata);"
 
             Using cmdIns As New SQLiteCommand(sqlUpsert, conn)
                 Dim pP = cmdIns.Parameters.Add("@p", DbType.String)
-                Dim pF = cmdIns.Parameters.Add("@f", DbType.String)
                 Dim pE = cmdIns.Parameters.Add("@e", DbType.String)
                 Dim pS = cmdIns.Parameters.Add("@s", DbType.Int64)
                 Dim pM = cmdIns.Parameters.Add("@m", DbType.String)
@@ -462,7 +502,6 @@ ON CONFLICT(fullpath) DO UPDATE SET
                             cmdIns.Transaction = tx
                             For Each r In batch
                                 pP.Value = r.FullPath
-                                pF.Value = IO.Path.GetFileName(r.FullPath)
                                 pE.Value = If(r.Ext, "")
                                 pS.Value = r.Size
                                 pM.Value = If(r.Metadata, "")
@@ -514,18 +553,38 @@ ON CONFLICT(fullpath) DO UPDATE SET
                     sb.Append("NOT ") : needOp = False
 
                 Case TokKind.Phrase
-                    If needOp Then sb.Append(" ").Append(op).Append(" ")
-                    sb.Append("""").Append(EscapeQuotes(t.Text)).Append("""") : needOp = True
+                    ' detail=none: emulate phrase by AND-ing the words
+                    Dim words = t.Text.Split({" "c, ControlChars.Tab}, StringSplitOptions.RemoveEmptyEntries)
+                    For i As Integer = 0 To words.Length - 1
+                        Dim w = words(i)
+                        If i > 0 OrElse needOp Then sb.Append(" ").Append(op).Append(" ")
+                        If autoPrefixWildcard AndAlso Not w.Contains("*"c) AndAlso w.Length >= 3 Then w &= "*"
+                        If Not w.Contains("*"c) AndAlso NeedsQuoting(w) Then w = """" & EscapeQuotes(w) & """"
+                        sb.Append(w)
+                        needOp = True
+                    Next
 
                 Case TokKind.Field
+                    ' Only honor fullpath:/metadata:; everything else becomes a normal term
                     If needOp Then sb.Append(" ").Append(op).Append(" ")
                     Dim fld = t.Field.ToLowerInvariant()
                     Dim val = t.Text
+
                     Dim hasStar = val.IndexOf("*"c) >= 0
                     Dim isPhrase = val.StartsWith("""") AndAlso val.EndsWith("""")
-                    If Not isPhrase AndAlso autoPrefixWildcard AndAlso Not hasStar AndAlso val.Length >= 3 Then val &= "*"
-                    If Not val.Contains("*"c) AndAlso NeedsQuoting(val) Then val = """" & EscapeQuotes(val) & """"
-                    sb.Append(fld).Append(":").Append(val) : needOp = True
+
+                    If fld = "fullpath" OrElse fld = "metadata" Then
+                        If Not isPhrase AndAlso autoPrefixWildcard AndAlso Not hasStar AndAlso val.Length >= 3 Then val &= "*"
+                        If Not val.Contains("*"c) AndAlso NeedsQuoting(val) Then val = """" & EscapeQuotes(val) & """"
+                        sb.Append(fld).Append(":").Append(val) : needOp = True
+                    Else
+                        ' ext:, filename:, etc. -> treat like a normal term so MATCH never references
+                        ' non-existent FTS columns (since ext/filename aren't in FTS anymore)
+                        Dim asWord = val
+                        If Not isPhrase AndAlso autoPrefixWildcard AndAlso Not hasStar AndAlso asWord.Length >= 3 Then asWord &= "*"
+                        If Not asWord.Contains("*"c) AndAlso NeedsQuoting(asWord) Then asWord = """" & EscapeQuotes(asWord) & """"
+                        sb.Append(asWord) : needOp = True
+                    End If
 
                 Case TokKind.Word
                     If needOp Then sb.Append(" ").Append(op).Append(" ")
@@ -744,6 +803,21 @@ ON CONFLICT(fullpath) DO UPDATE SET
     End Sub
 
 
+
+    'is it a legacy database? 
+    Private Function IsLegacyDatabase(conn As SQLiteConnection) As Boolean
+        ' Legacy == files table contains "filename" column (we've dropped it)
+        Using cmd As New SQLiteCommand("PRAGMA table_info(files);", conn)
+            Using r = cmd.ExecuteReader()
+                While r.Read()
+                    If Not r.IsDBNull(1) AndAlso String.Equals(r.GetString(1), "filename", StringComparison.OrdinalIgnoreCase) Then
+                        Return True
+                    End If
+                End While
+            End Using
+        End Using
+        Return False
+    End Function
 
 
 

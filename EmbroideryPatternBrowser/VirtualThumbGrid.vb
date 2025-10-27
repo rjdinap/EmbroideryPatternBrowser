@@ -4,7 +4,7 @@ Imports System.Threading
 Imports System.Linq
 
 ' Virtualized thumbnail grid for huge DataTables (100k–1M rows).
-' Required columns: fullpath, filename, ext, size, metadata.
+' Required columns: fullpath, ext, size, metadata.
 ' Usage:
 '   grid.Bind(dt, AddressOf CreateImageFromPatternWrapper, PictureBox_FullImage, AddressOf SaveMetadataToDb)
 ' Where:
@@ -425,7 +425,8 @@ Public Class VirtualThumbGrid
                 End If
 
                 Dim row = _table.Rows(idx)
-                Dim name As String = SafeStr(row("filename"))
+                Dim path As String = SafeStr(row("fullpath"))
+                Dim name As String = DeriveDisplayName(path)
                 Dim textRect As New RectangleF(x, y + ThumbH + 3, ThumbW, TileH - ThumbH - 6)
                 Using sf As New StringFormat()
                     sf.Trimming = StringTrimming.EllipsisCharacter
@@ -457,6 +458,26 @@ Public Class VirtualThumbGrid
             Next
         Next
     End Sub
+
+
+
+    Private Shared Function DeriveDisplayName(fullpath As String) As String
+        If String.IsNullOrWhiteSpace(fullpath) Then Return ""
+        Try
+            If IsCompositeZipPath(fullpath) Then
+                ' ZipProcessing.ParseFilename returns (outer, ".zip", inner)
+                Dim zp As New ZipProcessing()
+                Dim t = zp.ParseFilename(fullpath)
+                If Not String.IsNullOrEmpty(t.Item3) Then
+                    Return IO.Path.GetFileName(t.Item3)
+                End If
+            End If
+            Return IO.Path.GetFileName(fullpath)
+        Catch
+            Return IO.Path.GetFileName(fullpath)
+        End Try
+    End Function
+
 
 
     Private Sub InvalidateTile(index As Integer)
@@ -879,10 +900,12 @@ Public Class VirtualThumbGrid
         If idx = _hoverShownIndex Then Return
 
         Dim row = _table.Rows(idx)
-        Dim tipText = "fullpath: " & SafeStr(row("fullpath")) & Environment.NewLine &
-                      "filename: " & SafeStr(row("filename")) & Environment.NewLine &
-                      "size: " & SafeStr(row("size")) & Environment.NewLine &
-                      "metadata: " & SafeStr(row("metadata"))
+        Dim p = SafeStr(row("fullpath"))
+        Dim displayName = DeriveDisplayName(p)
+        Dim tipText = "fullpath: " & p & Environment.NewLine &
+              "filename: " & displayName & Environment.NewLine &
+              "size: " & SafeStr(row("size")) & Environment.NewLine &
+              "metadata: " & SafeStr(row("metadata"))
 
         Dim pt As Point = _lastMousePt + New Size(16, 20)
         _tip.Show(tipText, Me, pt, 7000)
