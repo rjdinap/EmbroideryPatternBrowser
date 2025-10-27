@@ -1,8 +1,8 @@
-# Embroidery File Browser - 1.0.10
+# Embroidery File Browser - 1.0.11
 
 
 ## Quick install: (windows only, 64 bit)
-If you just want to install and use the program, click on this link to grab the installer from here: [https://github.com/rjdinap/EmbroideryPatternBrowser/releases/download/Latest_Installer/EmbroideryPatternBrowserInstaller.msi](https://github.com/rjdinap/EmbroideryPatternBrowser/releases/download/Version1.0.10/EmbroideryPatternBrowserInstaller_1.0.10.msi)
+If you just want to install and use the program, click on this link to grab the installer from here: (https://github.com/rjdinap/EmbroideryPatternBrowser/releases/download/Version1.0.11/EmbroideryPatternBrowserInstaller_1.0.11.msi)
 
 
 ## Description
@@ -23,7 +23,7 @@ Here's a link to the help file (as a .pdf): https://github.com/rjdinap/Embroider
 ## I'm too lazy to read the help
  - You'll scan your filesystem one time.
  - File information is stored in a database.
- - And then you can search for files (even with a database containing millions of filename, in < 1 second.)
+ - And then you can search for files - even with a database containing 2 million files - in < 1 second.... (depending on your machine speed)
  - Images are converted from their native embroidery format and shown on the screen in realtime, even if your search returns hundreds of thousands of rows.
  - You can easily copy files to a USB flash drive from inside the program, without having to mess around with opening windows explorer windows
 
