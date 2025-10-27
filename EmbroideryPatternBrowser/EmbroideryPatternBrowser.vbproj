@@ -148,6 +148,7 @@
     </Compile>
     <Compile Include="GraphicsFunction.vb" />
     <Compile Include="HusReader.vb" />
+    <Compile Include="ImageDriveManager.vb" />
     <Compile Include="JefReader.vb" />
     <Compile Include="Logger.vb" />
     <Compile Include="MetadataEditorForm.vb">

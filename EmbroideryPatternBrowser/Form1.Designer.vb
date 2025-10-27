@@ -51,17 +51,19 @@ Partial Class Form1
         Me.TabControl_Panel_Right_Fill = New System.Windows.Forms.TabControl()
         Me.TabPage1 = New System.Windows.Forms.TabPage()
         Me.Panel_TabPage1_Fill = New System.Windows.Forms.Panel()
-        Me.PictureBox_FullImage = New EmbroideryPatternBrowser.ZoomPictureBox()
         Me.Panel_TabPage1_Top = New System.Windows.Forms.Panel()
         Me.Button_Rotate = New System.Windows.Forms.Button()
         Me.TabPage2 = New System.Windows.Forms.TabPage()
         Me.Panel_TabPage2_Fill_Fill = New System.Windows.Forms.Panel()
-        Me.ZoomPictureBox_Stitches = New EmbroideryPatternBrowser.ZoomPictureBox()
         Me.Panel_TabPage2_Fill_Right = New System.Windows.Forms.Panel()
         Me.Panel_TabPage2_Fill_Bottom = New System.Windows.Forms.Panel()
         Me.Panel_Right_Bottom = New System.Windows.Forms.Panel()
         Me.Panel_Right_Bottom_Fill = New System.Windows.Forms.Panel()
         Me.Panel_Right_Bottom_Top = New System.Windows.Forms.Panel()
+        Me.Label_ImageLocation = New System.Windows.Forms.Label()
+        Me.ComboBox_ImageDrive = New System.Windows.Forms.ComboBox()
+        Me.PictureBox_FullImage = New EmbroideryPatternBrowser.ZoomPictureBox()
+        Me.ZoomPictureBox_Stitches = New EmbroideryPatternBrowser.ZoomPictureBox()
         Me.Panel_Main_Top.SuspendLayout()
         Me.MenuStrip1.SuspendLayout()
         Me.Panel_Main_Bottom.SuspendLayout()
@@ -82,6 +84,8 @@ Partial Class Form1
         '
         Me.Panel_Main_Top.BackColor = System.Drawing.Color.FromArgb(CType(CType(192, Byte), Integer), CType(CType(255, Byte), Integer), CType(CType(192, Byte), Integer))
         Me.Panel_Main_Top.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+        Me.Panel_Main_Top.Controls.Add(Me.ComboBox_ImageDrive)
+        Me.Panel_Main_Top.Controls.Add(Me.Label_ImageLocation)
         Me.Panel_Main_Top.Controls.Add(Me.ComboBox_Filter)
         Me.Panel_Main_Top.Controls.Add(Me.Label_Filter)
         Me.Panel_Main_Top.Controls.Add(Me.Button_Search)
@@ -100,7 +104,7 @@ Partial Class Form1
         Me.ComboBox_Filter.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
         Me.ComboBox_Filter.FormattingEnabled = True
         Me.ComboBox_Filter.Items.AddRange(New Object() {"", "dst", "exp", "hus", "jef", "pec", "pes", "sew", "vip", "vp3", "xxx"})
-        Me.ComboBox_Filter.Location = New System.Drawing.Point(506, 31)
+        Me.ComboBox_Filter.Location = New System.Drawing.Point(508, 30)
         Me.ComboBox_Filter.Name = "ComboBox_Filter"
         Me.ComboBox_Filter.Size = New System.Drawing.Size(121, 24)
         Me.ComboBox_Filter.TabIndex = 6
@@ -188,13 +192,13 @@ Partial Class Form1
         'ScanForImagesToolStripMenuItem
         '
         Me.ScanForImagesToolStripMenuItem.Name = "ScanForImagesToolStripMenuItem"
-        Me.ScanForImagesToolStripMenuItem.Size = New System.Drawing.Size(180, 24)
+        Me.ScanForImagesToolStripMenuItem.Size = New System.Drawing.Size(175, 24)
         Me.ScanForImagesToolStripMenuItem.Text = "Scan for Images"
         '
         'SettingsToolStripMenuItem
         '
         Me.SettingsToolStripMenuItem.Name = "SettingsToolStripMenuItem"
-        Me.SettingsToolStripMenuItem.Size = New System.Drawing.Size(180, 24)
+        Me.SettingsToolStripMenuItem.Size = New System.Drawing.Size(175, 24)
         Me.SettingsToolStripMenuItem.Text = "Options"
         '
         'HelpToolStripMenuItem
@@ -340,18 +344,6 @@ Partial Class Form1
         Me.Panel_TabPage1_Fill.Size = New System.Drawing.Size(418, 244)
         Me.Panel_TabPage1_Fill.TabIndex = 1
         '
-        'PictureBox_FullImage
-        '
-        Me.PictureBox_FullImage.BackColor = System.Drawing.Color.White
-        Me.PictureBox_FullImage.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.PictureBox_FullImage.Image = Nothing
-        Me.PictureBox_FullImage.Location = New System.Drawing.Point(0, 0)
-        Me.PictureBox_FullImage.LogicalSourceSize = New System.Drawing.SizeF(0!, 0!)
-        Me.PictureBox_FullImage.Name = "PictureBox_FullImage"
-        Me.PictureBox_FullImage.Size = New System.Drawing.Size(418, 244)
-        Me.PictureBox_FullImage.TabIndex = 0
-        Me.PictureBox_FullImage.Zoom = 1.0R
-        '
         'Panel_TabPage1_Top
         '
         Me.Panel_TabPage1_Top.BackColor = System.Drawing.SystemColors.Control
@@ -394,19 +386,6 @@ Partial Class Form1
         Me.Panel_TabPage2_Fill_Fill.Name = "Panel_TabPage2_Fill_Fill"
         Me.Panel_TabPage2_Fill_Fill.Size = New System.Drawing.Size(332, 234)
         Me.Panel_TabPage2_Fill_Fill.TabIndex = 2
-        '
-        'ZoomPictureBox_Stitches
-        '
-        Me.ZoomPictureBox_Stitches.BackColor = System.Drawing.Color.White
-        Me.ZoomPictureBox_Stitches.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.ZoomPictureBox_Stitches.Image = Nothing
-        Me.ZoomPictureBox_Stitches.Location = New System.Drawing.Point(0, 0)
-        Me.ZoomPictureBox_Stitches.LogicalSourceSize = New System.Drawing.SizeF(0!, 0!)
-        Me.ZoomPictureBox_Stitches.Name = "ZoomPictureBox_Stitches"
-        Me.ZoomPictureBox_Stitches.Size = New System.Drawing.Size(332, 234)
-        Me.ZoomPictureBox_Stitches.TabIndex = 0
-        Me.ZoomPictureBox_Stitches.Text = "ZoomPictureBox1"
-        Me.ZoomPictureBox_Stitches.Zoom = 1.0R
         '
         'Panel_TabPage2_Fill_Right
         '
@@ -451,6 +430,51 @@ Partial Class Form1
         Me.Panel_Right_Bottom_Top.Name = "Panel_Right_Bottom_Top"
         Me.Panel_Right_Bottom_Top.Size = New System.Drawing.Size(432, 34)
         Me.Panel_Right_Bottom_Top.TabIndex = 0
+        '
+        'Label_ImageLocation
+        '
+        Me.Label_ImageLocation.AutoSize = True
+        Me.Label_ImageLocation.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        Me.Label_ImageLocation.Location = New System.Drawing.Point(675, 33)
+        Me.Label_ImageLocation.Name = "Label_ImageLocation"
+        Me.Label_ImageLocation.Size = New System.Drawing.Size(83, 16)
+        Me.Label_ImageLocation.TabIndex = 7
+        Me.Label_ImageLocation.Text = "Image Drive:"
+        '
+        'ComboBox_ImageDrive
+        '
+        Me.ComboBox_ImageDrive.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
+        Me.ComboBox_ImageDrive.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        Me.ComboBox_ImageDrive.FormattingEnabled = True
+        Me.ComboBox_ImageDrive.Location = New System.Drawing.Point(764, 30)
+        Me.ComboBox_ImageDrive.Name = "ComboBox_ImageDrive"
+        Me.ComboBox_ImageDrive.Size = New System.Drawing.Size(180, 24)
+        Me.ComboBox_ImageDrive.TabIndex = 8
+        '
+        'PictureBox_FullImage
+        '
+        Me.PictureBox_FullImage.BackColor = System.Drawing.Color.White
+        Me.PictureBox_FullImage.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.PictureBox_FullImage.Image = Nothing
+        Me.PictureBox_FullImage.Location = New System.Drawing.Point(0, 0)
+        Me.PictureBox_FullImage.LogicalSourceSize = New System.Drawing.SizeF(0!, 0!)
+        Me.PictureBox_FullImage.Name = "PictureBox_FullImage"
+        Me.PictureBox_FullImage.Size = New System.Drawing.Size(418, 244)
+        Me.PictureBox_FullImage.TabIndex = 0
+        Me.PictureBox_FullImage.Zoom = 1.0R
+        '
+        'ZoomPictureBox_Stitches
+        '
+        Me.ZoomPictureBox_Stitches.BackColor = System.Drawing.Color.White
+        Me.ZoomPictureBox_Stitches.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.ZoomPictureBox_Stitches.Image = Nothing
+        Me.ZoomPictureBox_Stitches.Location = New System.Drawing.Point(0, 0)
+        Me.ZoomPictureBox_Stitches.LogicalSourceSize = New System.Drawing.SizeF(0!, 0!)
+        Me.ZoomPictureBox_Stitches.Name = "ZoomPictureBox_Stitches"
+        Me.ZoomPictureBox_Stitches.Size = New System.Drawing.Size(332, 234)
+        Me.ZoomPictureBox_Stitches.TabIndex = 0
+        Me.ZoomPictureBox_Stitches.Text = "ZoomPictureBox1"
+        Me.ZoomPictureBox_Stitches.Zoom = 1.0R
         '
         'Form1
         '
@@ -524,4 +548,6 @@ Partial Class Form1
     Friend WithEvents ToolsToolStripMenuItem As ToolStripMenuItem
     Friend WithEvents ScanForImagesToolStripMenuItem As ToolStripMenuItem
     Friend WithEvents SettingsToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents ComboBox_ImageDrive As ComboBox
+    Friend WithEvents Label_ImageLocation As Label
 End Class

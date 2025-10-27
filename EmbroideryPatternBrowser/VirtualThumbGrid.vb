@@ -311,17 +311,19 @@ Public Class VirtualThumbGrid
                     'this is where we get the filename that we're going to load
                     'for a normal filename, we can just pull it from fullpath.
                     'we'll need special processing if it's a .zip file
-                    Dim fullpath As String = SafeStr(row("fullpath"))
-
-                    If String.IsNullOrEmpty(fullpath) Then
+                    Dim stored As String = SafeStr(row("fullpath"))
+                    If String.IsNullOrEmpty(stored) Then
                         Dim d3 As Byte : _pending.TryRemove(idx, d3)
                         Continue For
                     End If
 
+                    Dim effective As String = Form1._imgDriveMgr.Resolve(stored)
+
+
                     Dim img As Image = Nothing
                     ' Render thumbnail off-UI thread
                     Await Task.Run(Sub()
-                                       img = EmbThumbnail.GenerateFromFile(fullpath,
+                                       img = EmbThumbnail.GenerateFromFile(effective,
                                                                            maxWidth:=ThumbW,
                                                                            maxHeight:=ThumbH,
                                                                            padding:=6,
@@ -331,7 +333,7 @@ Public Class VirtualThumbGrid
                                    End Sub, ct)
 
                     If img IsNot Nothing Then
-                        _cache.Add(idx, img, fullpath)
+                        _cache.Add(idx, img, effective)
                         BeginInvoke(DirectCast(Sub() InvalidateTile(idx), Action))
                     End If
                 Catch ex As OperationCanceledException
@@ -607,8 +609,9 @@ Public Class VirtualThumbGrid
         If idx < 0 OrElse idx >= _rowCount Then Return
 
         Dim row = _table.Rows(idx)
-        Dim path As String = SafeStr(row("fullpath"))
-        If String.IsNullOrEmpty(path) Then Return
+        Dim stored As String = SafeStr(row("fullpath"))
+        If String.IsNullOrEmpty(stored) Then Return
+        Dim path As String = ImageDriveManager.Resolve(stored)
 
         ' >>> NEW: push the actual pattern to TabPage2 stitch-display <<<
         If _stitchDisplay IsNot Nothing Then
@@ -683,14 +686,40 @@ Public Class VirtualThumbGrid
     Private Sub OpenDirectoryForIndex(idx As Integer)
         If idx < 0 OrElse idx >= _rowCount Then Return
         Dim row = _table.Rows(idx)
-        Dim path As String = SafeStr(row("fullpath"))
-        If String.IsNullOrEmpty(path) Then Return
+
+        Dim stored As String = SafeStr(row("fullpath"))
+        If String.IsNullOrEmpty(stored) Then Return
+
+        ' If it's a composite zip path like "C:\folder\file.zip?inner\file.pes",
+        ' open/select the outer .zip file in Explorer.
+        If IsCompositeZipPath(stored) Then
+            Try
+                Dim zp As New ZipProcessing()
+                Dim t = zp.ParseFilename(stored)  ' (outerPath, ".zip", remainder)
+                If Not String.IsNullOrEmpty(t.Item1) Then
+                    stored = t.Item1
+                End If
+            Catch
+                ' ignore & continue with the original
+            End Try
+        End If
+
+        ' Apply the drive override from the combobox
+        Dim effective As String = ImageDriveManager.Resolve(stored)
 
         Try
-            ShellSelectHelper.OpenAndSelect(path)
+            ShellSelectHelper.OpenAndSelect(effective)
         Catch
+            ' fall back: open containing folder even if selection fails
+            Try
+                Dim dir = IO.Path.GetDirectoryName(effective)
+                If Not String.IsNullOrEmpty(dir) Then Process.Start("explorer.exe", dir)
+            Catch
+            End Try
         End Try
     End Sub
+
+
 
     Private Sub EditMetadataForIndex(idx As Integer)
         If idx < 0 OrElse idx >= _rowCount Then Return
@@ -1053,19 +1082,19 @@ Public Class VirtualThumbGrid
         Return IndexFromPoint(pt)
     End Function
 
-    Private Function GetPathForIndex(idx As Integer) As String
+    Function GetPathForIndex(idx As Integer) As String
         If idx < 0 OrElse idx >= _rowCount Then Return Nothing
 
-        ' Prefer the cache (fast, already stored)
+        ' Cache stores resolved path if available
         Dim p As String = _cache.GetFullPath(idx)
         If Not String.IsNullOrWhiteSpace(p) Then Return p
 
-        ' Fallback to backing table if the item hasn't hit cache yet
+        ' Fallback to table, then resolve
         Dim row = _table.Rows(idx)
-        p = SafeStr(row("fullpath"))
-        If Not String.IsNullOrWhiteSpace(p) Then Return p
+        Dim stored As String = SafeStr(row("fullpath"))
+        If String.IsNullOrWhiteSpace(stored) Then Return Nothing
 
-        Return Nothing
+        Return ImageDriveManager.Resolve(stored)
     End Function
 
     Private Sub SetSingleSelection(index As Integer, Optional ensureVisible As Boolean = False)

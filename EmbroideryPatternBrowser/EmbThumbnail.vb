@@ -36,6 +36,7 @@ Public Module EmbThumbnail
                                      Optional showName As Boolean = False) As Image
         Try
             If String.IsNullOrWhiteSpace(filePath) Then Return Nothing
+            filePath = ImageDriveManager.Resolve(filePath)
             If bg.IsEmpty Then bg = Color.White
 
             ' cap request

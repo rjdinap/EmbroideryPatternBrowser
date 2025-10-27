@@ -22,7 +22,6 @@ Imports Microsoft.WindowsAPICodePack.Dialogs
 
 
 
-
 Public Class Form1
 
     Public databaseName As String = GetDatabaseToUse()
@@ -36,6 +35,8 @@ Public Class Form1
     Private Const HelpPdfName As String = "EmbroideryHelp.pdf"
     Private _isShuttingDown As Boolean = False
     Private _dlg As StitchDisplay
+    ' --- Drive watcher for plug/unplug ---
+    Public _imgDriveMgr As ImageDriveManager
 
 
     ' ==== Startup ====
@@ -76,6 +77,9 @@ Public Class Form1
             Try : SQLiteOperations.CloseSQLite() : Catch : End Try
         End Sub
 
+
+        _imgDriveMgr = New ImageDriveManager(Me, ComboBox_ImageDrive)
+        _imgDriveMgr.Start()
 
         ' USB-only browser control
         usbBrowser = New UsbFileBrowser() With {.Dock = DockStyle.Fill}
@@ -132,6 +136,8 @@ Public Class Form1
 
 
 
+
+
     ' ==== Search ====
     Private Sub Button_Search_Click(sender As Object, e As EventArgs) Handles Button_Search.Click
         Try
@@ -173,7 +179,8 @@ Public Class Form1
     ' ==== Thumbnail render wrapper for grid ====
     Private Function CreateImageFromPatternWrapper(path As String, w As Integer, h As Integer) As Image
         Try
-            Dim pat As EmbPattern = EmbReaderFactory.LoadPattern(path)
+            Dim effective As String = ImageDriveManager.Resolve(path)
+            Dim pat As EmbPattern = EmbReaderFactory.LoadPattern(effective)
             ' Conservative defaults; no heavy effects by default
             Return pat.CreateImageFromPattern(w:=w, h:=h, margin:=20, densityShading:=False, shadingStrength:=1.0)
         Catch ex As Exception
@@ -269,8 +276,10 @@ Public Class Form1
 
     ' In Form1: ensure we always close the DB when the user clicks the X
     Private Sub Form1_FormClosing(sender As Object, e As FormClosingEventArgs) Handles Me.FormClosing
+        _imgDriveMgr?.Dispose()
+        _imgDriveMgr = Nothing
 
-        Dim r = usbBrowser.RequestAppClose(e)  ' replace with your instance name
+        Dim r = usbBrowser.RequestAppClose(e)
 
         If r = DialogResult.Yes Then
             If _isShuttingDown Then Exit Sub
@@ -335,7 +344,6 @@ Public Class Form1
 
 
 
-
     ' ==== Open DB ====
     Private Sub OpenDatabaseToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles OpenDatabaseToolStripMenuItem.Click
         Try
@@ -358,6 +366,7 @@ Public Class Form1
             Logger.Error(ex.Message, ex.StackTrace.ToString)
         End Try
     End Sub
+
 
 
 
@@ -512,8 +521,6 @@ Public Class Form1
     Private Sub TextBox_Search_Enter(ByVal sender As System.Object, ByVal e As EventArgs) Handles TextBox_Search.Enter
         TextBox_Search.Text = ""
     End Sub
-
-
 
 
 

@@ -1,15 +1,13 @@
 TODO: 
 
-better searching
-
 update web site with new install information
+documentation update for stitches window, mousewheel image scroll
+improve documentation on searching
 
-documentation update for image / stitches window. auto optimize check
-bug: if no threadlist, color bar on stitch panel isn't updated
 
-
-1.0.12	 - dropped the attempt to auto optimize - apparently sqlite does it automatically
-		 - dropdown to search on a different drive letter (removable drives)
+1.0.12	- dropped the attempt to auto optimize - apparently sqlite does it automatically
+		- rework indexing and fts for speed on searching
+		- dropdown to search on a different drive letter (removable drives)
 
 1.0.11	- fix a bug with cancelling scan for images
 		- fix a bug with pes reading; few files were inverted

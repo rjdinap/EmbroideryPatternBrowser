@@ -147,7 +147,8 @@ Public Class StitchDisplay
         Try
             If Not String.IsNullOrWhiteSpace(patternPathOrName) Then
                 ' Uses the same loader Form1 uses
-                pat = EmbReaderFactory.LoadPattern(patternPathOrName)
+                Dim resolved As String = ImageDriveManager.Resolve(patternPathOrName)
+                pat = EmbReaderFactory.LoadPattern(resolved)
                 'Logger.Info("StitchDisplay.UpdatePattern: threadlist count: " & pat.ThreadList.Count.ToString)
             End If
         Catch ex As Exception
@@ -182,6 +183,7 @@ Public Class StitchDisplay
         _hasFitOnce = False  ' <-- ADD THIS LINE to reset the fit flag for each new pattern
 
         RedrawFilteredTo(_target, _currentPattern, _selectedColors, _drawUpto)
+        _progressBar.Invalidate()
         EnsureRightPanelFitsColorList()
     End Sub
 
