@@ -2,25 +2,22 @@ TODO:
 
 better searching
 
-startup database open is too slow
-
-lock down the ui during optimize / rebuild to prevent stupid things like closing the database
-prevent (or discourage) closing the app during a database rebuild or optimize
-
-add stitch viewer?
-
 update web site with new install information
 
+documentation update for image / stitches window. auto optimize check
+bug: if no threadlist, color bar on stitch panel isn't updated
 
 
-1.0.12	 - Start to implement stitch viewer
+1.0.12	 - dropped the attempt to auto optimize - apparently sqlite does it automatically
+		 - dropdown to search on a different drive letter (removable drives)
 
 1.0.11	- fix a bug with cancelling scan for images
 		- fix a bug with pes reading; few files were inverted
 		- mousewheel to make the image larger / smaller and click/drag to scroll the image
 		- added a small logging framework and refactored code for it
-		- removed all the previous optimization code. added a new optimize check that's fast
+		- removed all the previous optimization code. added a new optimize check on startup that's fast
 		- fix a nasty bug with metadata deletion and searching
+		- Initial Stitch viewer implementation
 
 1.0.10	- Add Tools -> Maintenance stuff - check database health and optimize database
 		- by default, optimize database on exit is turned off for speed

@@ -60,7 +60,7 @@ Public Module EmbThumbnail
             Try
                 pat = EmbReaderFactory.LoadPattern(filePath)
             Catch ex As Exception
-                Logger.Info("EmbThumbnail: error in file: " & filePath & " - " & ex.Message, ex.StackTrace.ToString)
+                Logger.Debug("EmbThumbnail: error in file: " & filePath & " - " & ex.Message, ex.StackTrace.ToString)
                 Return Nothing
             End Try
 
@@ -69,7 +69,7 @@ Public Module EmbThumbnail
             Return img
 
         Catch ex As Exception
-            Try : Logger.Info("EmbThumbnail: error in file: " & filePath & " - " & ex.Message, ex.StackTrace.ToString) : Catch : End Try
+            Try : Logger.Debug("EmbThumbnail: error in file: " & filePath & " - " & ex.Message, ex.StackTrace.ToString) : Catch : End Try
             Return Nothing
         End Try
     End Function

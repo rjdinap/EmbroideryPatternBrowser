@@ -21,6 +21,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_4321350C3CB042F29C0BE0AAA2130C5B"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_460986727BA66D190561240EDC450B69"
         "OwnerKey" = "8:_4988108B4003429BBD106E784629BB72"
         "MsmSig" = "8:_UNDEFINED"
@@ -28,12 +34,6 @@
         "Entry"
         {
         "MsmKey" = "8:_4988108B4003429BBD106E784629BB72"
-        "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_77E4D3D7C82140D69B467C7F05910C36"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -119,7 +119,7 @@
         "DisplayName" = "8:Release"
         "IsDebugOnly" = "11:FALSE"
         "IsReleaseOnly" = "11:TRUE"
-        "OutputFilename" = "8:Release\\EmbroideryPatternBrowserInstaller_1.0.10.msi"
+        "OutputFilename" = "8:Release\\EmbroideryPatternBrowserInstaller_1.0.12.msi"
         "PackageFilesAs" = "3:2"
         "PackageFileSize" = "3:-2147483648"
         "CabType" = "3:1"
@@ -205,6 +205,26 @@
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_4321350C3CB042F29C0BE0AAA2130C5B"
+            {
+            "SourcePath" = "8:..\\EmbroideryPatternBrowser\\bin\\x64\\Release\\x64\\SQLite.Interop.dll"
+            "TargetName" = "8:SQLite.Interop.dll"
+            "Tag" = "8:"
+            "Folder" = "8:_616985FCD22346B9BEF5C25D3D045656"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_460986727BA66D190561240EDC450B69"
             {
             "AssemblyRegister" = "3:1"
@@ -234,26 +254,6 @@
             "Register" = "3:1"
             "Exclude" = "11:FALSE"
             "IsDependency" = "11:TRUE"
-            "IsolateTo" = "8:"
-            }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_77E4D3D7C82140D69B467C7F05910C36"
-            {
-            "SourcePath" = "8:..\\EmbroideryPatternBrowser\\bin\\Release\\x64\\SQLite.Interop.dll"
-            "TargetName" = "8:SQLite.Interop.dll"
-            "Tag" = "8:"
-            "Folder" = "8:_616985FCD22346B9BEF5C25D3D045656"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
             "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_7F9BD120709C1A354928CE7A5E077959"
@@ -396,15 +396,15 @@
         {
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:Embroidery Pattern Browser"
-        "ProductCode" = "8:{47289392-A24F-4419-9B1A-CCE04B82CAA1}"
-        "PackageCode" = "8:{F8F9AD48-9953-4E35-8B94-0E5179856D64}"
+        "ProductCode" = "8:{09391D51-0603-4283-B84C-48B497D611FB}"
+        "PackageCode" = "8:{2186BDC5-F6ED-40A9-86C9-1C58EE0048A5}"
         "UpgradeCode" = "8:{C6977173-032B-4F1E-A690-A52AB50BCFDF}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
         "RemovePreviousVersions" = "11:TRUE"
         "DetectNewerInstalledVersion" = "11:FALSE"
         "InstallAllUsers" = "11:FALSE"
-        "ProductVersion" = "8:1.0.10"
+        "ProductVersion" = "8:1.0.12"
         "Manufacturer" = "8:Robert DiNapoli"
         "ARPHELPTELEPHONE" = "8:"
         "ARPHELPLINK" = "8:"

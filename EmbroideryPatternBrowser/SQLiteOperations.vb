@@ -75,8 +75,6 @@ Module SQLiteOperations
             Logger.Debug($"Open: FTS5 probe in {sw.ElapsedMilliseconds} ms total")
             CreateSchema(conn, created)
             Logger.Debug($"Open: schema check in {sw.ElapsedMilliseconds} ms total")
-            EnsureMetaTable(conn) ' create the table that lets us track changes since the last optimize
-            QuickNeedsOptimize(200_000)
         End Using
 
         _stopRequested = False
@@ -302,12 +300,6 @@ END;"
         End Using
 
         Using cmd As New SQLiteCommand(conn)
-            'cmd.CommandText =
-            '"CREATE TRIGGER IF NOT EXISTS files_au AFTER UPDATE ON files BEGIN
-            'INSERT INTO files_fts(files_fts, rowid, fullpath) VALUES('delete', old.rowid, old.fullpath);
-            'INSERT INTO files_fts(rowid, fullpath, filename, ext, metadata)
-            'VALUES (new.rowid, new.fullpath, new.filename, new.ext, new.metadata);
-            'End;"
             cmd.CommandText =
 "CREATE TRIGGER IF NOT EXISTS files_au AFTER UPDATE ON files BEGIN
   INSERT INTO files_fts(files_fts, rowid, fullpath, filename, ext, metadata) 
@@ -384,7 +376,6 @@ END;"
                 ck.ExecuteNonQuery()
             End Using
         End If
-
 
         If aggressivePragmas Then
             ExecPragma(conn, "temp_store", "MEMORY")
@@ -747,7 +738,6 @@ ON CONFLICT(fullpath) DO UPDATE SET
                          Try : StatusProgress.ClosePopup() : Catch : End Try
                          'After optimize completes successfully
                          Logger.Info("FTS index optimized.")
-                         MarkOptimized() 'clear the the meta table - (mark as optimzed)
                          Threading.Interlocked.Exchange(_maintenanceRunning, 0)
                      End Try
                  End Sub)
@@ -755,103 +745,6 @@ ON CONFLICT(fullpath) DO UPDATE SET
 
 
 
-    ' ---------- Meta / Quick health ----------
-
-    ' Ensure the meta table and required keys exist.
-    Private Sub EnsureMetaTable(conn As SQLiteConnection)
-        Try
-            Using cmd As New SQLiteCommand(conn)
-                cmd.CommandText = "
-            CREATE TABLE IF NOT EXISTS meta(
-              k TEXT PRIMARY KEY,
-              v TEXT
-            );"
-                cmd.ExecuteNonQuery()
-
-                cmd.CommandText = "INSERT OR IGNORE INTO meta(k,v) VALUES('rows_since_optimize','0');"
-                cmd.ExecuteNonQuery()
-            End Using
-            Logger.Debug("Ensured meta table and keys exist.")
-        Catch ex As Exception
-            Logger.Error("EnsureMetaTable failed: " & ex.Message, ex.ToString())
-        End Try
-    End Sub
-
-
-    ' Return True if rows_since_optimize >= thresholdRows.
-    Public Function QuickNeedsOptimize(thresholdRows As Integer) As Boolean
-        If String.IsNullOrWhiteSpace(_dbPath) Then Return False
-        Try
-            Using conn As New SQLiteConnection(BuildConnStr())
-                conn.Open()
-                ExecPragma(conn, "busy_timeout", _busyTimeoutMs.ToString())
-                EnsureMetaTable(conn)
-                Using cmd As New SQLiteCommand("SELECT CAST(v AS INTEGER) FROM meta WHERE k='rows_since_optimize';", conn)
-                    Dim o = cmd.ExecuteScalar()
-                    Dim rowsSince As Long = 0
-                    If o IsNot Nothing AndAlso o IsNot DBNull.Value Then rowsSince = CLng(o)
-                    Dim needs As Boolean = (rowsSince >= thresholdRows)
-                    Logger.Debug($"Quick index health: rows_since_optimize={rowsSince:n0}, threshold={thresholdRows:n0}, needs_optimize={needs}")
-                    Logger.Noprefix($"Quick index health: rows changed since last optimize={rowsSince:n0}")
-                    If needs Then
-                        Logger.Noprefix("Your database needs index optimization. It may take a long time to perform the optimization, but it will dramatically increase speed when searching for iamges. When you have the time, go Tools -> Maintenance -> Optimize Search Index ", color:=Color.Red)
-                    End If
-                    Return needs
-                End Using
-            End Using
-        Catch ex As Exception
-            Logger.Error("QuickNeedsOptimize error: " & ex.Message, ex.ToString())
-            Return False
-        End Try
-    End Function
-
-
-    ' Atomically add to rows_since_optimize (can be negative if needed).
-    Public Sub AddRowsSinceOptimize(delta As Long)
-        If String.IsNullOrWhiteSpace(_dbPath) Then Exit Sub
-        Try
-            Using conn As New SQLiteConnection(BuildConnStr())
-                conn.Open()
-                ExecPragma(conn, "busy_timeout", _busyTimeoutMs.ToString())
-                EnsureMetaTable(conn)
-                Using cmd As New SQLiteCommand("
-                UPDATE meta
-                SET v = printf('%d', MAX(0, CAST(v AS INTEGER) + @d))
-                WHERE k='rows_since_optimize';", conn)
-                    cmd.Parameters.Add("@d", DbType.Int64).Value = delta
-                    Dim n = cmd.ExecuteNonQuery()
-                    If n = 0 Then
-                        ' If the key was missing for some reason, (re)create it.
-                        Using ins As New SQLiteCommand("INSERT OR REPLACE INTO meta(k,v) VALUES('rows_since_optimize', @v);", conn)
-                            ins.Parameters.Add("@v", DbType.String).Value = Math.Max(0, delta).ToString()
-                            ins.ExecuteNonQuery()
-                        End Using
-                    End If
-                End Using
-                Logger.Debug($"rows_since_optimize += {delta:n0}")
-            End Using
-        Catch ex As Exception
-            Logger.Error("AddRowsSinceOptimize error: " & ex.Message, ex.ToString())
-        End Try
-    End Sub
-
-    ' Reset rows_since_optimize to 0 (call after a successful optimize/rebuild).
-    Public Sub MarkOptimized()
-        If String.IsNullOrWhiteSpace(_dbPath) Then Exit Sub
-        Try
-            Using conn As New SQLiteConnection(BuildConnStr())
-                conn.Open()
-                ExecPragma(conn, "busy_timeout", _busyTimeoutMs.ToString())
-                EnsureMetaTable(conn)
-                Using cmd As New SQLiteCommand("UPDATE meta SET v='0' WHERE k='rows_since_optimize';", conn)
-                    cmd.ExecuteNonQuery()
-                End Using
-            End Using
-            Logger.Info("Marked optimized: rows_since_optimize reset to 0.")
-        Catch ex As Exception
-            Logger.Error("MarkOptimized error: " & ex.Message, ex.ToString())
-        End Try
-    End Sub
 
 
 

@@ -148,7 +148,7 @@ Public Class StitchDisplay
             If Not String.IsNullOrWhiteSpace(patternPathOrName) Then
                 ' Uses the same loader Form1 uses
                 pat = EmbReaderFactory.LoadPattern(patternPathOrName)
-                Logger.Info("StitchDisplay.UpdatePattern: threadlist count: " & pat.ThreadList.Count.ToString)
+                'Logger.Info("StitchDisplay.UpdatePattern: threadlist count: " & pat.ThreadList.Count.ToString)
             End If
         Catch ex As Exception
             Try : Logger.Error("StitchDisplay.UpdatePattern: " & ex.Message, ex.ToString()) : Catch : End Try
@@ -156,6 +156,8 @@ Public Class StitchDisplay
         End Try
         UpdatePattern(pat)
     End Sub
+
+
 
     ' Keep an overload if you already have an EmbPattern in hand.
     Public Sub UpdatePattern(pat As EmbPattern)
@@ -177,10 +179,13 @@ Public Class StitchDisplay
         _lblProgress.Text = $"{_drawUpto} / {_totalStitches}"
         _bounds = RectangleF.Empty
         ResetFrame()
+        _hasFitOnce = False  ' <-- ADD THIS LINE to reset the fit flag for each new pattern
 
         RedrawFilteredTo(_target, _currentPattern, _selectedColors, _drawUpto)
         EnsureRightPanelFitsColorList()
     End Sub
+
+
 
     Public Sub StartPlayback()
         If _totalStitches <= 0 Then Return

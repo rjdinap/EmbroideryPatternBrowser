@@ -25,7 +25,6 @@ Imports Microsoft.WindowsAPICodePack.Dialogs
 
 Public Class Form1
 
-
     Public databaseName As String = GetDatabaseToUse()
     Private loadCts As CancellationTokenSource ' (reserved for future use)
     Private usbBrowser As UsbFileBrowser
@@ -39,13 +38,12 @@ Public Class Form1
     Private _dlg As StitchDisplay
 
 
-
     ' ==== Startup ====
     Private Sub EmbroideryPatternBrowser_Load(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles MyBase.Load
 
         StatusProgress.ShowPopup(status:="Setting up...", indeterminate:=True)
         Me.WindowState = FormWindowState.Maximized
-
+        Me.Update()
     End Sub
 
 
@@ -82,10 +80,9 @@ Public Class Form1
         ' USB-only browser control
         usbBrowser = New UsbFileBrowser() With {.Dock = DockStyle.Fill}
         Panel_Right_Bottom_Fill.Controls.Add(usbBrowser)
-
         usbBrowser.NavigateToRoot()
 
-        'no one is going to see this anyway until they can search
+        'stitch dialog panel - no one is going to see this anyway until they can search
         _dlg = New StitchDisplay(
         Panel_TabPage2_Fill_Right,
         Panel_TabPage2_Fill_Bottom,
@@ -118,13 +115,9 @@ Public Class Form1
 
         'set the database name on the form
         TextBox_Database.Text = databaseName
-
-
         Logger.Noprefix("Welcome to EmbroideryPatternBrowser! : Version " & My.Application.Info.Version.ToString & vbCrLf)
 
     End Sub
-
-
 
 
 
@@ -193,6 +186,8 @@ Public Class Form1
             Return bmp
         End Try
     End Function
+
+
 
 
     ' ==== Close DB ====
@@ -366,22 +361,6 @@ Public Class Form1
 
 
 
-    'optimize database
-    Private Sub OptimizeDatabaseToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles OptimizeDatabaseToolStripMenuItem.Click
-        Dim msg As String = "Database maintenance" & vbCrLf & vbCrLf & "This Is Not a normal user Option, And should only be performed If the program has alerted you To perform maintenance." & vbCrLf & vbCrLf
-        msg = msg + "This operation will optimize the search index, which may take anywhere from several seconds To several hours depending On database size / fragmentation level / speed Of your hard drive." & vbCrLf & vbCrLf
-        msg = msg + "Press OK To perform the maintenance, Or Cancel To abort."
-
-        Dim res = MessageBox.Show(Me, msg, "Optimize Search Index", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning)
-        If res <> DialogResult.OK Then Exit Sub
-
-        ' Fire the operation (the method itself shows a progress popup)
-        SQLiteOperations.OptimizeIndex()
-        Logger.Info("Index Optimization complete.")
-    End Sub
-
-
-
 
     ' ==== Grid callback to persist metadata ====
     Private Function SaveMetadataToDb(row As DataRow, newMetadata As String) As Boolean
@@ -448,12 +427,6 @@ Public Class Form1
                                Logger.Info(String.Format("Scan finished {0}", result.ToString()))
                                StatusProgress.ClosePopup()
                            End Sub)
-
-            'we need to check to see if we need an optimization
-            Dim delta As Long = result.FilesAdded + result.FilesUpdated + result.FilesDeleted
-            SQLiteOperations.AddRowsSinceOptimize(delta)
-            SQLiteOperations.QuickNeedsOptimize(200_000)
-
 
         Catch ex As Exception
             Me.BeginInvoke(Sub()
@@ -539,6 +512,10 @@ Public Class Form1
     Private Sub TextBox_Search_Enter(ByVal sender As System.Object, ByVal e As EventArgs) Handles TextBox_Search.Enter
         TextBox_Search.Text = ""
     End Sub
+
+
+
+
 
 
 End Class

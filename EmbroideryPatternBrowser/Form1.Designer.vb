@@ -33,12 +33,6 @@ Partial Class Form1
         Me.OpenDatabaseToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.CloseDatabaseToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.CreateNewDatabaseToolStripMenuItem1 = New System.Windows.Forms.ToolStripMenuItem()
-        Me.ToolsToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
-        Me.ScanForImagesToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
-        Me.SettingsToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
-        Me.ToolStripMenuItem1 = New System.Windows.Forms.ToolStripSeparator()
-        Me.MaintenanceToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
-        Me.OptimizeDatabaseToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.HelpToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.AboutToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.ShowHelpFIleToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
@@ -54,17 +48,21 @@ Partial Class Form1
         Me.TabControl_Panel_Right_Fill = New System.Windows.Forms.TabControl()
         Me.TabPage1 = New System.Windows.Forms.TabPage()
         Me.Panel_TabPage1_Fill = New System.Windows.Forms.Panel()
-        Me.PictureBox_FullImage = New EmbroideryPatternBrowser.ZoomPictureBox()
         Me.Panel_TabPage1_Top = New System.Windows.Forms.Panel()
         Me.Button_Rotate = New System.Windows.Forms.Button()
         Me.TabPage2 = New System.Windows.Forms.TabPage()
-        Me.ZoomPictureBox_Stitches = New EmbroideryPatternBrowser.ZoomPictureBox()
-        Me.Panel_TabPage2_Fill_Bottom = New System.Windows.Forms.Panel()
+        Me.Panel_TabPage2_Fill_Fill = New System.Windows.Forms.Panel()
         Me.Panel_TabPage2_Fill_Right = New System.Windows.Forms.Panel()
+        Me.Panel_TabPage2_Fill_Bottom = New System.Windows.Forms.Panel()
         Me.Panel_Right_Bottom = New System.Windows.Forms.Panel()
         Me.Panel_Right_Bottom_Fill = New System.Windows.Forms.Panel()
         Me.Panel_Right_Bottom_Top = New System.Windows.Forms.Panel()
-        Me.Panel_TabPage2_Fill_Fill = New System.Windows.Forms.Panel()
+        Me.PictureBox_FullImage = New EmbroideryPatternBrowser.ZoomPictureBox()
+        Me.ZoomPictureBox_Stitches = New EmbroideryPatternBrowser.ZoomPictureBox()
+        Me.ScanForImagesToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
+        Me.SettingsToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
+        Me.ToolStripMenuItem1 = New System.Windows.Forms.ToolStripSeparator()
+        Me.ToolsToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.Panel_Main_Top.SuspendLayout()
         Me.MenuStrip1.SuspendLayout()
         Me.Panel_Main_Bottom.SuspendLayout()
@@ -77,8 +75,8 @@ Partial Class Form1
         Me.Panel_TabPage1_Fill.SuspendLayout()
         Me.Panel_TabPage1_Top.SuspendLayout()
         Me.TabPage2.SuspendLayout()
-        Me.Panel_Right_Bottom.SuspendLayout()
         Me.Panel_TabPage2_Fill_Fill.SuspendLayout()
+        Me.Panel_Right_Bottom.SuspendLayout()
         Me.SuspendLayout()
         '
         'Panel_Main_Top
@@ -181,43 +179,6 @@ Partial Class Form1
         Me.CreateNewDatabaseToolStripMenuItem1.Size = New System.Drawing.Size(210, 24)
         Me.CreateNewDatabaseToolStripMenuItem1.Text = "Create New Database"
         '
-        'ToolsToolStripMenuItem
-        '
-        Me.ToolsToolStripMenuItem.DropDownItems.AddRange(New System.Windows.Forms.ToolStripItem() {Me.ScanForImagesToolStripMenuItem, Me.SettingsToolStripMenuItem, Me.ToolStripMenuItem1, Me.MaintenanceToolStripMenuItem})
-        Me.ToolsToolStripMenuItem.Name = "ToolsToolStripMenuItem"
-        Me.ToolsToolStripMenuItem.Size = New System.Drawing.Size(52, 23)
-        Me.ToolsToolStripMenuItem.Text = "Tools"
-        '
-        'ScanForImagesToolStripMenuItem
-        '
-        Me.ScanForImagesToolStripMenuItem.Name = "ScanForImagesToolStripMenuItem"
-        Me.ScanForImagesToolStripMenuItem.Size = New System.Drawing.Size(175, 24)
-        Me.ScanForImagesToolStripMenuItem.Text = "Scan for Images"
-        '
-        'SettingsToolStripMenuItem
-        '
-        Me.SettingsToolStripMenuItem.Name = "SettingsToolStripMenuItem"
-        Me.SettingsToolStripMenuItem.Size = New System.Drawing.Size(175, 24)
-        Me.SettingsToolStripMenuItem.Text = "Options"
-        '
-        'ToolStripMenuItem1
-        '
-        Me.ToolStripMenuItem1.Name = "ToolStripMenuItem1"
-        Me.ToolStripMenuItem1.Size = New System.Drawing.Size(172, 6)
-        '
-        'MaintenanceToolStripMenuItem
-        '
-        Me.MaintenanceToolStripMenuItem.DropDownItems.AddRange(New System.Windows.Forms.ToolStripItem() {Me.OptimizeDatabaseToolStripMenuItem})
-        Me.MaintenanceToolStripMenuItem.Name = "MaintenanceToolStripMenuItem"
-        Me.MaintenanceToolStripMenuItem.Size = New System.Drawing.Size(175, 24)
-        Me.MaintenanceToolStripMenuItem.Text = "Maintenance"
-        '
-        'OptimizeDatabaseToolStripMenuItem
-        '
-        Me.OptimizeDatabaseToolStripMenuItem.Name = "OptimizeDatabaseToolStripMenuItem"
-        Me.OptimizeDatabaseToolStripMenuItem.Size = New System.Drawing.Size(214, 24)
-        Me.OptimizeDatabaseToolStripMenuItem.Text = "Optimize Search Index"
-        '
         'HelpToolStripMenuItem
         '
         Me.HelpToolStripMenuItem.DropDownItems.AddRange(New System.Windows.Forms.ToolStripItem() {Me.AboutToolStripMenuItem, Me.ShowHelpFIleToolStripMenuItem})
@@ -228,13 +189,13 @@ Partial Class Form1
         'AboutToolStripMenuItem
         '
         Me.AboutToolStripMenuItem.Name = "AboutToolStripMenuItem"
-        Me.AboutToolStripMenuItem.Size = New System.Drawing.Size(168, 24)
+        Me.AboutToolStripMenuItem.Size = New System.Drawing.Size(180, 24)
         Me.AboutToolStripMenuItem.Text = "About"
         '
         'ShowHelpFIleToolStripMenuItem
         '
         Me.ShowHelpFIleToolStripMenuItem.Name = "ShowHelpFIleToolStripMenuItem"
-        Me.ShowHelpFIleToolStripMenuItem.Size = New System.Drawing.Size(168, 24)
+        Me.ShowHelpFIleToolStripMenuItem.Size = New System.Drawing.Size(180, 24)
         Me.ShowHelpFIleToolStripMenuItem.Text = "Show Help FIle"
         '
         'Panel_Main_Bottom
@@ -361,17 +322,6 @@ Partial Class Form1
         Me.Panel_TabPage1_Fill.Size = New System.Drawing.Size(418, 244)
         Me.Panel_TabPage1_Fill.TabIndex = 1
         '
-        'PictureBox_FullImage
-        '
-        Me.PictureBox_FullImage.BackColor = System.Drawing.Color.White
-        Me.PictureBox_FullImage.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.PictureBox_FullImage.Image = Nothing
-        Me.PictureBox_FullImage.Location = New System.Drawing.Point(0, 0)
-        Me.PictureBox_FullImage.Name = "PictureBox_FullImage"
-        Me.PictureBox_FullImage.Size = New System.Drawing.Size(418, 244)
-        Me.PictureBox_FullImage.TabIndex = 0
-        Me.PictureBox_FullImage.Zoom = 1.0R
-        '
         'Panel_TabPage1_Top
         '
         Me.Panel_TabPage1_Top.BackColor = System.Drawing.SystemColors.Control
@@ -406,25 +356,14 @@ Partial Class Form1
         Me.TabPage2.Text = "Stitches"
         Me.TabPage2.UseVisualStyleBackColor = True
         '
-        'ZoomPictureBox_Stitches
+        'Panel_TabPage2_Fill_Fill
         '
-        Me.ZoomPictureBox_Stitches.BackColor = System.Drawing.Color.White
-        Me.ZoomPictureBox_Stitches.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.ZoomPictureBox_Stitches.Image = Nothing
-        Me.ZoomPictureBox_Stitches.Location = New System.Drawing.Point(0, 0)
-        Me.ZoomPictureBox_Stitches.Name = "ZoomPictureBox_Stitches"
-        Me.ZoomPictureBox_Stitches.Size = New System.Drawing.Size(332, 234)
-        Me.ZoomPictureBox_Stitches.TabIndex = 0
-        Me.ZoomPictureBox_Stitches.Text = "ZoomPictureBox1"
-        Me.ZoomPictureBox_Stitches.Zoom = 1.0R
-        '
-        'Panel_TabPage2_Fill_Bottom
-        '
-        Me.Panel_TabPage2_Fill_Bottom.Dock = System.Windows.Forms.DockStyle.Bottom
-        Me.Panel_TabPage2_Fill_Bottom.Location = New System.Drawing.Point(3, 237)
-        Me.Panel_TabPage2_Fill_Bottom.Name = "Panel_TabPage2_Fill_Bottom"
-        Me.Panel_TabPage2_Fill_Bottom.Size = New System.Drawing.Size(418, 46)
-        Me.Panel_TabPage2_Fill_Bottom.TabIndex = 1
+        Me.Panel_TabPage2_Fill_Fill.Controls.Add(Me.ZoomPictureBox_Stitches)
+        Me.Panel_TabPage2_Fill_Fill.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.Panel_TabPage2_Fill_Fill.Location = New System.Drawing.Point(3, 3)
+        Me.Panel_TabPage2_Fill_Fill.Name = "Panel_TabPage2_Fill_Fill"
+        Me.Panel_TabPage2_Fill_Fill.Size = New System.Drawing.Size(332, 234)
+        Me.Panel_TabPage2_Fill_Fill.TabIndex = 2
         '
         'Panel_TabPage2_Fill_Right
         '
@@ -433,6 +372,14 @@ Partial Class Form1
         Me.Panel_TabPage2_Fill_Right.Name = "Panel_TabPage2_Fill_Right"
         Me.Panel_TabPage2_Fill_Right.Size = New System.Drawing.Size(86, 234)
         Me.Panel_TabPage2_Fill_Right.TabIndex = 0
+        '
+        'Panel_TabPage2_Fill_Bottom
+        '
+        Me.Panel_TabPage2_Fill_Bottom.Dock = System.Windows.Forms.DockStyle.Bottom
+        Me.Panel_TabPage2_Fill_Bottom.Location = New System.Drawing.Point(3, 237)
+        Me.Panel_TabPage2_Fill_Bottom.Name = "Panel_TabPage2_Fill_Bottom"
+        Me.Panel_TabPage2_Fill_Bottom.Size = New System.Drawing.Size(418, 46)
+        Me.Panel_TabPage2_Fill_Bottom.TabIndex = 1
         '
         'Panel_Right_Bottom
         '
@@ -462,14 +409,54 @@ Partial Class Form1
         Me.Panel_Right_Bottom_Top.Size = New System.Drawing.Size(432, 34)
         Me.Panel_Right_Bottom_Top.TabIndex = 0
         '
-        'Panel_TabPage2_Fill_Fill
+        'PictureBox_FullImage
         '
-        Me.Panel_TabPage2_Fill_Fill.Controls.Add(Me.ZoomPictureBox_Stitches)
-        Me.Panel_TabPage2_Fill_Fill.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.Panel_TabPage2_Fill_Fill.Location = New System.Drawing.Point(3, 3)
-        Me.Panel_TabPage2_Fill_Fill.Name = "Panel_TabPage2_Fill_Fill"
-        Me.Panel_TabPage2_Fill_Fill.Size = New System.Drawing.Size(332, 234)
-        Me.Panel_TabPage2_Fill_Fill.TabIndex = 2
+        Me.PictureBox_FullImage.BackColor = System.Drawing.Color.White
+        Me.PictureBox_FullImage.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.PictureBox_FullImage.Image = Nothing
+        Me.PictureBox_FullImage.Location = New System.Drawing.Point(0, 0)
+        Me.PictureBox_FullImage.LogicalSourceSize = New System.Drawing.SizeF(0!, 0!)
+        Me.PictureBox_FullImage.Name = "PictureBox_FullImage"
+        Me.PictureBox_FullImage.Size = New System.Drawing.Size(418, 244)
+        Me.PictureBox_FullImage.TabIndex = 0
+        Me.PictureBox_FullImage.Zoom = 1.0R
+        '
+        'ZoomPictureBox_Stitches
+        '
+        Me.ZoomPictureBox_Stitches.BackColor = System.Drawing.Color.White
+        Me.ZoomPictureBox_Stitches.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.ZoomPictureBox_Stitches.Image = Nothing
+        Me.ZoomPictureBox_Stitches.Location = New System.Drawing.Point(0, 0)
+        Me.ZoomPictureBox_Stitches.LogicalSourceSize = New System.Drawing.SizeF(0!, 0!)
+        Me.ZoomPictureBox_Stitches.Name = "ZoomPictureBox_Stitches"
+        Me.ZoomPictureBox_Stitches.Size = New System.Drawing.Size(332, 234)
+        Me.ZoomPictureBox_Stitches.TabIndex = 0
+        Me.ZoomPictureBox_Stitches.Text = "ZoomPictureBox1"
+        Me.ZoomPictureBox_Stitches.Zoom = 1.0R
+        '
+        'ScanForImagesToolStripMenuItem
+        '
+        Me.ScanForImagesToolStripMenuItem.Name = "ScanForImagesToolStripMenuItem"
+        Me.ScanForImagesToolStripMenuItem.Size = New System.Drawing.Size(180, 24)
+        Me.ScanForImagesToolStripMenuItem.Text = "Scan for Images"
+        '
+        'SettingsToolStripMenuItem
+        '
+        Me.SettingsToolStripMenuItem.Name = "SettingsToolStripMenuItem"
+        Me.SettingsToolStripMenuItem.Size = New System.Drawing.Size(180, 24)
+        Me.SettingsToolStripMenuItem.Text = "Options"
+        '
+        'ToolStripMenuItem1
+        '
+        Me.ToolStripMenuItem1.Name = "ToolStripMenuItem1"
+        Me.ToolStripMenuItem1.Size = New System.Drawing.Size(177, 6)
+        '
+        'ToolsToolStripMenuItem
+        '
+        Me.ToolsToolStripMenuItem.DropDownItems.AddRange(New System.Windows.Forms.ToolStripItem() {Me.ScanForImagesToolStripMenuItem, Me.SettingsToolStripMenuItem, Me.ToolStripMenuItem1})
+        Me.ToolsToolStripMenuItem.Name = "ToolsToolStripMenuItem"
+        Me.ToolsToolStripMenuItem.Size = New System.Drawing.Size(52, 23)
+        Me.ToolsToolStripMenuItem.Text = "Tools"
         '
         'Form1
         '
@@ -498,8 +485,8 @@ Partial Class Form1
         Me.Panel_TabPage1_Fill.ResumeLayout(False)
         Me.Panel_TabPage1_Top.ResumeLayout(False)
         Me.TabPage2.ResumeLayout(False)
-        Me.Panel_Right_Bottom.ResumeLayout(False)
         Me.Panel_TabPage2_Fill_Fill.ResumeLayout(False)
+        Me.Panel_Right_Bottom.ResumeLayout(False)
         Me.ResumeLayout(False)
 
     End Sub
@@ -508,7 +495,6 @@ Partial Class Form1
     Friend WithEvents FileToolStripMenuItem As System.Windows.Forms.ToolStripMenuItem
     Friend WithEvents Panel_Main_Bottom As System.Windows.Forms.Panel
     Friend WithEvents Panel_Main_Fill As System.Windows.Forms.Panel
-    Friend WithEvents ToolsToolStripMenuItem As ToolStripMenuItem
     Friend WithEvents Button_Search As Button
     Friend WithEvents TextBox_Search As TextBox
     Friend WithEvents Label_Search As Label
@@ -531,11 +517,6 @@ Partial Class Form1
     Friend WithEvents Panel_Right_Bottom_Top As Panel
     Friend WithEvents CloseDatabaseToolStripMenuItem As ToolStripMenuItem
     Friend WithEvents CreateNewDatabaseToolStripMenuItem1 As ToolStripMenuItem
-    Friend WithEvents ScanForImagesToolStripMenuItem As ToolStripMenuItem
-    Friend WithEvents SettingsToolStripMenuItem As ToolStripMenuItem
-    Friend WithEvents ToolStripMenuItem1 As ToolStripSeparator
-    Friend WithEvents MaintenanceToolStripMenuItem As ToolStripMenuItem
-    Friend WithEvents OptimizeDatabaseToolStripMenuItem As ToolStripMenuItem
     Friend WithEvents PictureBox_FullImage As ZoomPictureBox
     Friend WithEvents TabControl_Panel_Right_Fill As TabControl
     Friend WithEvents TabPage1 As TabPage
@@ -546,4 +527,8 @@ Partial Class Form1
     Friend WithEvents ZoomPictureBox_Stitches As ZoomPictureBox
     Friend WithEvents Panel_TabPage2_Fill_Bottom As Panel
     Friend WithEvents Panel_TabPage2_Fill_Fill As Panel
+    Friend WithEvents ToolsToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents ScanForImagesToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents SettingsToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents ToolStripMenuItem1 As ToolStripSeparator
 End Class
