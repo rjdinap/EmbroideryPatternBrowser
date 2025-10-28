@@ -618,7 +618,7 @@ Public Class VirtualThumbGrid
 
             ' Try to resolve to an actual file on disk (zip members etc. will fail this check)
             Try
-                Dim effective As String = Form1._imgDriveMgr.Resolve(stored)
+                Dim effective As String = ImageDriveManager.Resolve(stored)
                 If Not String.IsNullOrEmpty(effective) AndAlso IO.File.Exists(effective) Then
                     real.Add(effective)
                 End If
