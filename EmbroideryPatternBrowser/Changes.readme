@@ -1,8 +1,11 @@
 TODO: 
 
+printing
 update web site with new install information
 documentation update for stitches window, mousewheel image scroll
 improve documentation on searching
+check cpu, disk type on startup. log to disk
+investigating phash Hamming distance / dhash / ahash
 
 
 1.0.12	- dropped the attempt to auto optimize - apparently sqlite does it automatically

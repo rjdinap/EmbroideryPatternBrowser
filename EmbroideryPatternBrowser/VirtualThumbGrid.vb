@@ -44,6 +44,9 @@ Public Class VirtualThumbGrid
     Private _cellSize As Size                        ' computed = thumb + padding
     Private _selectedIndices As New HashSet(Of Integer)() ' ==== Selection (multi-select support) ====
     Private _anchorIndex As Integer = -1 '' Selection anchor for Shift-range
+    ' Drag state
+    Private _mouseDownLeft As Boolean = False
+    Private _mouseDownIndex As Integer = -1
 
     ' --- Virtual/zip data exchange format (between our controls) ---
     Private Const DATAFMT_VIRTUAL_LIST As String = "EPB_VIRTUAL_FILE_LIST"
@@ -317,7 +320,7 @@ Public Class VirtualThumbGrid
                         Continue For
                     End If
 
-                    Dim effective As String = Form1._imgDriveMgr.Resolve(stored)
+                    Dim effective As String = ImageDriveManager.Resolve(stored)
 
 
                     Dim img As Image = Nothing
@@ -515,6 +518,10 @@ Public Class VirtualThumbGrid
         Dim shift As Boolean = (Control.ModifierKeys And Keys.Shift) = Keys.Shift
 
         If e.Button = MouseButtons.Left Then
+            _mouseDownLeft = True
+            _mouseDownIndex = idx
+            _dragStart = e.Location
+
             Dim prev = _selectedIndices.ToList() ' snapshot for painting diff
 
             If shift AndAlso _selectedIndex >= 0 Then
@@ -538,18 +545,21 @@ Public Class VirtualThumbGrid
                 _anchorIndex = idx
                 SetSelectedIndex(idx, ensureVisible:=False)
 
+            ElseIf _selectedIndices.Contains(idx) Then
+                ' NEW: plain click on an already-selected tile -> keep selection, move caret only
+                _anchorIndex = idx
+                SetSelectedIndex(idx, ensureVisible:=False)
+
             Else
-                ' Plain click => single selection
+                ' Plain click on unselected -> single-select
                 _selectedIndices.Clear()
                 _selectedIndices.Add(idx)
                 _anchorIndex = idx
                 SetSelectedIndex(idx, ensureVisible:=False)
             End If
 
-            ' Repaint only changed tiles
             InvalidateSelectionDiff(prev)
             Invalidate()
-
             TryShowFullImageForIndex(idx)
 
             ' Drag prep
@@ -574,7 +584,10 @@ Public Class VirtualThumbGrid
 
     Protected Overrides Sub OnMouseUp(e As MouseEventArgs)
         MyBase.OnMouseUp(e)
-        If e.Button = MouseButtons.Right Then
+        If e.Button = MouseButtons.Left Then
+            _mouseDownLeft = False
+            _mouseDownIndex = -1
+        ElseIf e.Button = MouseButtons.Right Then
             Dim idx = IndexFromPoint(e.Location)
             If idx <> -1 Then
                 SetSelectedIndex(idx, ensureVisible:=False)
@@ -582,6 +595,61 @@ Public Class VirtualThumbGrid
             End If
         End If
     End Sub
+
+
+
+    ' Drag the entire current selection (real files via CF_HDROP + our virtual list)
+    Private Sub BeginDragSelection()
+        If _selectedIndices Is Nothing OrElse _selectedIndices.Count = 0 Then Exit Sub
+
+        ' Stable order
+        Dim ids = _selectedIndices.OrderBy(Function(i) i).ToArray()
+
+        Dim all As New List(Of String)()   ' stored paths from the grid (may include virtual/zip-style)
+        Dim real As New List(Of String)()  ' resolved filesystem paths for CF_HDROP
+
+        For Each idx In ids
+            If idx < 0 OrElse idx >= _rowCount Then Continue For
+            Dim row = _table.Rows(idx)
+            Dim stored As String = SafeStr(row("fullpath"))
+            If String.IsNullOrEmpty(stored) Then Continue For
+
+            all.Add(stored)
+
+            ' Try to resolve to an actual file on disk (zip members etc. will fail this check)
+            Try
+                Dim effective As String = Form1._imgDriveMgr.Resolve(stored)
+                If Not String.IsNullOrEmpty(effective) AndAlso IO.File.Exists(effective) Then
+                    real.Add(effective)
+                End If
+            Catch
+                ' ignore any IO/resolve errors
+            End Try
+        Next
+
+        If all.Count = 0 Then Exit Sub
+
+        Dim data As New DataObject()
+
+        ' Real files => CF_HDROP
+        If real.Count > 0 Then
+            Dim sc As New System.Collections.Specialized.StringCollection()
+            sc.AddRange(real.ToArray())
+            data.SetFileDropList(sc)
+        End If
+
+        ' Our virtual format (keep as List(Of String) so UsbFileBrowser can cast it),
+        ' and also plain text as a convenience/fallback.
+        data.SetData(DATAFMT_VIRTUAL_LIST, False, all)
+        data.SetText(String.Join(Environment.NewLine, all))
+
+        ' Let the target choose Copy/Move; we default to Copy but allow Move.
+        DoDragDrop(data, DragDropEffects.Copy Or DragDropEffects.Move)
+    End Sub
+
+
+
+
 
     ' Fit src into (w x h) preserving aspect; letterbox with white if needed.
     Private Shared Function FitBitmap(ByVal src As Image, ByVal w As Integer, ByVal h As Integer) As Image
@@ -879,36 +947,56 @@ Public Class VirtualThumbGrid
         End If
 
         ' --- DRAG START CHECK ---
-        If e.Button = MouseButtons.Left Then
+        If e.Button = MouseButtons.Left OrElse _mouseDownLeft Then
             Dim dx = Math.Abs(e.X - _dragStart.X)
             Dim dy = Math.Abs(e.Y - _dragStart.Y)
             If Math.Max(dx, dy) >= DragThreshold Then
-                Dim paths As List(Of String) = GetDragFilePathsAt(e.Location)
-                If paths IsNot Nothing AndAlso paths.Count > 0 Then
-                    Dim all = paths.Distinct(StringComparer.OrdinalIgnoreCase).ToList()
-                    Dim real = all.Where(Function(p) IO.File.Exists(p)).ToList()
-                    Dim virt = all.Where(Function(p) Not IO.File.Exists(p) AndAlso IsCompositeZipPath(p)).ToList()
 
-                    Dim data As New DataObject()
+                ' If we pressed on a selected item, drag the whole selection.
+                If _mouseDownLeft AndAlso _mouseDownIndex >= 0 AndAlso _selectedIndices.Contains(_mouseDownIndex) Then
+                    BeginDragSelection()
+                Else
+                    ' Fallback: your existing per-hit drag (unchanged)
+                    Dim paths As List(Of String) = GetDragFilePathsAt(e.Location)
+                    If paths IsNot Nothing AndAlso paths.Count > 0 Then
+                        Dim all = paths.Distinct(StringComparer.OrdinalIgnoreCase).ToList()
+                        Dim real = all.Where(Function(p) IO.File.Exists(p)).ToList()
 
-                    ' Real files => CF_HDROP
-                    If real.Count > 0 Then
-                        Dim sc As New Specialized.StringCollection()
-                        sc.AddRange(real.ToArray())
-                        data.SetFileDropList(sc)
-                    End If
-
-                    ' All (real + virtual) => custom format for our USB panel
-                    If all.Count > 0 Then
+                        Dim data As New DataObject()
+                        If real.Count > 0 Then
+                            Dim sc As New System.Collections.Specialized.StringCollection()
+                            sc.AddRange(real.ToArray())
+                            data.SetFileDropList(sc)
+                        End If
                         data.SetData(DATAFMT_VIRTUAL_LIST, False, all)
                         data.SetText(String.Join(Environment.NewLine, all))
+                        DoDragDrop(data, DragDropEffects.Copy)
                     End If
-
-                    DoDragDrop(data, DragDropEffects.Copy)
                 End If
+
+                ' reset after drag start/attempt
+                _mouseDownLeft = False
+                _mouseDownIndex = -1
             End If
         End If
     End Sub
+
+
+
+
+    Private Function GetPathsForSelection() As List(Of String)
+        Dim all As New List(Of String)()
+        If _selectedIndices Is Nothing OrElse _selectedIndices.Count = 0 Then Return all
+
+        For Each i In _selectedIndices.OrderBy(Function(x) x)
+            If i < 0 OrElse i >= _rowCount Then Continue For
+            Dim row = _table.Rows(i)
+            Dim stored As String = SafeStr(row("fullpath"))
+            If String.IsNullOrEmpty(stored) Then Continue For
+            all.Add(stored)
+        Next
+        Return all
+    End Function
 
 
 
@@ -917,6 +1005,8 @@ Public Class VirtualThumbGrid
         _hoverTimer.Stop()
         HideTooltip()
         _hoverCandidateIndex = -1
+        _mouseDownLeft = False
+        _mouseDownIndex = -1
     End Sub
 
     Private Sub OnHoverTimerTick(sender As Object, e As EventArgs)
