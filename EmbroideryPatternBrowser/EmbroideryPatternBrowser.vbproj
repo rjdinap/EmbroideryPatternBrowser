@@ -213,6 +213,7 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="PrintFunctions.vb" />
     <None Include="Resources\epb_icon_128_white_bmp32_manual.ico" />
     <Content Include="Help\EmbroideryHelp.odt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

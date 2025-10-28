@@ -369,6 +369,11 @@ Public Class Form1
 
 
 
+    'print
+    Private Sub PrintToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles PrintToolStripMenuItem.Click
+        PrintFunctions.ShowPrintPane(Me, TryCast(Me.Panel_Main_Fill.Controls.OfType(Of VirtualThumbGrid)().FirstOrDefault(), VirtualThumbGrid))
+    End Sub
+
 
 
     ' ==== Grid callback to persist metadata ====
@@ -521,8 +526,6 @@ Public Class Form1
     Private Sub TextBox_Search_Enter(ByVal sender As System.Object, ByVal e As EventArgs) Handles TextBox_Search.Enter
         TextBox_Search.Text = ""
     End Sub
-
-
 
 
 End Class

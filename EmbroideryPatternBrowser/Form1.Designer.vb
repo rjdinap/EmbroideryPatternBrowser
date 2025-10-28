@@ -23,6 +23,8 @@ Partial Class Form1
     <System.Diagnostics.DebuggerStepThrough()>
     Private Sub InitializeComponent()
         Me.Panel_Main_Top = New System.Windows.Forms.Panel()
+        Me.ComboBox_ImageDrive = New System.Windows.Forms.ComboBox()
+        Me.Label_ImageLocation = New System.Windows.Forms.Label()
         Me.ComboBox_Filter = New System.Windows.Forms.ComboBox()
         Me.Label_Filter = New System.Windows.Forms.Label()
         Me.Button_Search = New System.Windows.Forms.Button()
@@ -51,19 +53,19 @@ Partial Class Form1
         Me.TabControl_Panel_Right_Fill = New System.Windows.Forms.TabControl()
         Me.TabPage1 = New System.Windows.Forms.TabPage()
         Me.Panel_TabPage1_Fill = New System.Windows.Forms.Panel()
+        Me.PictureBox_FullImage = New EmbroideryPatternBrowser.ZoomPictureBox()
         Me.Panel_TabPage1_Top = New System.Windows.Forms.Panel()
         Me.Button_Rotate = New System.Windows.Forms.Button()
         Me.TabPage2 = New System.Windows.Forms.TabPage()
         Me.Panel_TabPage2_Fill_Fill = New System.Windows.Forms.Panel()
+        Me.ZoomPictureBox_Stitches = New EmbroideryPatternBrowser.ZoomPictureBox()
         Me.Panel_TabPage2_Fill_Right = New System.Windows.Forms.Panel()
         Me.Panel_TabPage2_Fill_Bottom = New System.Windows.Forms.Panel()
         Me.Panel_Right_Bottom = New System.Windows.Forms.Panel()
         Me.Panel_Right_Bottom_Fill = New System.Windows.Forms.Panel()
         Me.Panel_Right_Bottom_Top = New System.Windows.Forms.Panel()
-        Me.Label_ImageLocation = New System.Windows.Forms.Label()
-        Me.ComboBox_ImageDrive = New System.Windows.Forms.ComboBox()
-        Me.PictureBox_FullImage = New EmbroideryPatternBrowser.ZoomPictureBox()
-        Me.ZoomPictureBox_Stitches = New EmbroideryPatternBrowser.ZoomPictureBox()
+        Me.ToolStripMenuItem1 = New System.Windows.Forms.ToolStripSeparator()
+        Me.PrintToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.Panel_Main_Top.SuspendLayout()
         Me.MenuStrip1.SuspendLayout()
         Me.Panel_Main_Bottom.SuspendLayout()
@@ -97,6 +99,26 @@ Partial Class Form1
         Me.Panel_Main_Top.Name = "Panel_Main_Top"
         Me.Panel_Main_Top.Size = New System.Drawing.Size(1356, 59)
         Me.Panel_Main_Top.TabIndex = 0
+        '
+        'ComboBox_ImageDrive
+        '
+        Me.ComboBox_ImageDrive.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
+        Me.ComboBox_ImageDrive.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        Me.ComboBox_ImageDrive.FormattingEnabled = True
+        Me.ComboBox_ImageDrive.Location = New System.Drawing.Point(764, 30)
+        Me.ComboBox_ImageDrive.Name = "ComboBox_ImageDrive"
+        Me.ComboBox_ImageDrive.Size = New System.Drawing.Size(180, 24)
+        Me.ComboBox_ImageDrive.TabIndex = 8
+        '
+        'Label_ImageLocation
+        '
+        Me.Label_ImageLocation.AutoSize = True
+        Me.Label_ImageLocation.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        Me.Label_ImageLocation.Location = New System.Drawing.Point(675, 33)
+        Me.Label_ImageLocation.Name = "Label_ImageLocation"
+        Me.Label_ImageLocation.Size = New System.Drawing.Size(83, 16)
+        Me.Label_ImageLocation.TabIndex = 7
+        Me.Label_ImageLocation.Text = "Image Drive:"
         '
         'ComboBox_Filter
         '
@@ -159,7 +181,7 @@ Partial Class Form1
         '
         'FileToolStripMenuItem
         '
-        Me.FileToolStripMenuItem.DropDownItems.AddRange(New System.Windows.Forms.ToolStripItem() {Me.OpenDatabaseToolStripMenuItem, Me.CloseDatabaseToolStripMenuItem, Me.CreateNewDatabaseToolStripMenuItem1})
+        Me.FileToolStripMenuItem.DropDownItems.AddRange(New System.Windows.Forms.ToolStripItem() {Me.OpenDatabaseToolStripMenuItem, Me.CloseDatabaseToolStripMenuItem, Me.CreateNewDatabaseToolStripMenuItem1, Me.ToolStripMenuItem1, Me.PrintToolStripMenuItem})
         Me.FileToolStripMenuItem.Name = "FileToolStripMenuItem"
         Me.FileToolStripMenuItem.Size = New System.Drawing.Size(41, 23)
         Me.FileToolStripMenuItem.Text = "File"
@@ -344,6 +366,18 @@ Partial Class Form1
         Me.Panel_TabPage1_Fill.Size = New System.Drawing.Size(418, 244)
         Me.Panel_TabPage1_Fill.TabIndex = 1
         '
+        'PictureBox_FullImage
+        '
+        Me.PictureBox_FullImage.BackColor = System.Drawing.Color.White
+        Me.PictureBox_FullImage.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.PictureBox_FullImage.Image = Nothing
+        Me.PictureBox_FullImage.Location = New System.Drawing.Point(0, 0)
+        Me.PictureBox_FullImage.LogicalSourceSize = New System.Drawing.SizeF(0!, 0!)
+        Me.PictureBox_FullImage.Name = "PictureBox_FullImage"
+        Me.PictureBox_FullImage.Size = New System.Drawing.Size(418, 244)
+        Me.PictureBox_FullImage.TabIndex = 0
+        Me.PictureBox_FullImage.Zoom = 1.0R
+        '
         'Panel_TabPage1_Top
         '
         Me.Panel_TabPage1_Top.BackColor = System.Drawing.SystemColors.Control
@@ -386,6 +420,19 @@ Partial Class Form1
         Me.Panel_TabPage2_Fill_Fill.Name = "Panel_TabPage2_Fill_Fill"
         Me.Panel_TabPage2_Fill_Fill.Size = New System.Drawing.Size(332, 234)
         Me.Panel_TabPage2_Fill_Fill.TabIndex = 2
+        '
+        'ZoomPictureBox_Stitches
+        '
+        Me.ZoomPictureBox_Stitches.BackColor = System.Drawing.Color.White
+        Me.ZoomPictureBox_Stitches.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.ZoomPictureBox_Stitches.Image = Nothing
+        Me.ZoomPictureBox_Stitches.Location = New System.Drawing.Point(0, 0)
+        Me.ZoomPictureBox_Stitches.LogicalSourceSize = New System.Drawing.SizeF(0!, 0!)
+        Me.ZoomPictureBox_Stitches.Name = "ZoomPictureBox_Stitches"
+        Me.ZoomPictureBox_Stitches.Size = New System.Drawing.Size(332, 234)
+        Me.ZoomPictureBox_Stitches.TabIndex = 0
+        Me.ZoomPictureBox_Stitches.Text = "ZoomPictureBox1"
+        Me.ZoomPictureBox_Stitches.Zoom = 1.0R
         '
         'Panel_TabPage2_Fill_Right
         '
@@ -431,50 +478,16 @@ Partial Class Form1
         Me.Panel_Right_Bottom_Top.Size = New System.Drawing.Size(432, 34)
         Me.Panel_Right_Bottom_Top.TabIndex = 0
         '
-        'Label_ImageLocation
+        'ToolStripMenuItem1
         '
-        Me.Label_ImageLocation.AutoSize = True
-        Me.Label_ImageLocation.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.Label_ImageLocation.Location = New System.Drawing.Point(675, 33)
-        Me.Label_ImageLocation.Name = "Label_ImageLocation"
-        Me.Label_ImageLocation.Size = New System.Drawing.Size(83, 16)
-        Me.Label_ImageLocation.TabIndex = 7
-        Me.Label_ImageLocation.Text = "Image Drive:"
+        Me.ToolStripMenuItem1.Name = "ToolStripMenuItem1"
+        Me.ToolStripMenuItem1.Size = New System.Drawing.Size(207, 6)
         '
-        'ComboBox_ImageDrive
+        'PrintToolStripMenuItem
         '
-        Me.ComboBox_ImageDrive.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
-        Me.ComboBox_ImageDrive.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.ComboBox_ImageDrive.FormattingEnabled = True
-        Me.ComboBox_ImageDrive.Location = New System.Drawing.Point(764, 30)
-        Me.ComboBox_ImageDrive.Name = "ComboBox_ImageDrive"
-        Me.ComboBox_ImageDrive.Size = New System.Drawing.Size(180, 24)
-        Me.ComboBox_ImageDrive.TabIndex = 8
-        '
-        'PictureBox_FullImage
-        '
-        Me.PictureBox_FullImage.BackColor = System.Drawing.Color.White
-        Me.PictureBox_FullImage.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.PictureBox_FullImage.Image = Nothing
-        Me.PictureBox_FullImage.Location = New System.Drawing.Point(0, 0)
-        Me.PictureBox_FullImage.LogicalSourceSize = New System.Drawing.SizeF(0!, 0!)
-        Me.PictureBox_FullImage.Name = "PictureBox_FullImage"
-        Me.PictureBox_FullImage.Size = New System.Drawing.Size(418, 244)
-        Me.PictureBox_FullImage.TabIndex = 0
-        Me.PictureBox_FullImage.Zoom = 1.0R
-        '
-        'ZoomPictureBox_Stitches
-        '
-        Me.ZoomPictureBox_Stitches.BackColor = System.Drawing.Color.White
-        Me.ZoomPictureBox_Stitches.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.ZoomPictureBox_Stitches.Image = Nothing
-        Me.ZoomPictureBox_Stitches.Location = New System.Drawing.Point(0, 0)
-        Me.ZoomPictureBox_Stitches.LogicalSourceSize = New System.Drawing.SizeF(0!, 0!)
-        Me.ZoomPictureBox_Stitches.Name = "ZoomPictureBox_Stitches"
-        Me.ZoomPictureBox_Stitches.Size = New System.Drawing.Size(332, 234)
-        Me.ZoomPictureBox_Stitches.TabIndex = 0
-        Me.ZoomPictureBox_Stitches.Text = "ZoomPictureBox1"
-        Me.ZoomPictureBox_Stitches.Zoom = 1.0R
+        Me.PrintToolStripMenuItem.Name = "PrintToolStripMenuItem"
+        Me.PrintToolStripMenuItem.Size = New System.Drawing.Size(210, 24)
+        Me.PrintToolStripMenuItem.Text = "Print"
         '
         'Form1
         '
@@ -550,4 +563,6 @@ Partial Class Form1
     Friend WithEvents SettingsToolStripMenuItem As ToolStripMenuItem
     Friend WithEvents ComboBox_ImageDrive As ComboBox
     Friend WithEvents Label_ImageLocation As Label
+    Friend WithEvents ToolStripMenuItem1 As ToolStripSeparator
+    Friend WithEvents PrintToolStripMenuItem As ToolStripMenuItem
 End Class
